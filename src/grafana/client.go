@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"strings"
 )
 
 type Client struct {
@@ -14,6 +15,10 @@ type Client struct {
 }
 
 func NewClient(baseURL string, apiKey string) (c *Client) {
+	if strings.HasSuffix(baseURL, "/") {
+		baseURL = baseURL[:len(baseURL)-1]
+	}
+
 	return &Client{
 		BaseURL:    baseURL,
 		APIKey:     apiKey,

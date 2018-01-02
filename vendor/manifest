@@ -1,0 +1,127 @@
+{
+	"version": 0,
+	"dependencies": [
+		{
+			"importpath": "github.com/alcortesm/tgz",
+			"repository": "https://github.com/alcortesm/tgz",
+			"revision": "9c5fe88206d7765837fed3732a42ef88fc51f1a1",
+			"branch": "master"
+		},
+		{
+			"importpath": "github.com/jbenet/go-context/io",
+			"repository": "https://github.com/jbenet/go-context",
+			"revision": "d14ea06fba99483203c19d92cfcd13ebe73135f4",
+			"branch": "master",
+			"path": "/io"
+		},
+		{
+			"importpath": "github.com/jessevdk/go-flags",
+			"repository": "https://github.com/jessevdk/go-flags",
+			"revision": "f88afde2fa19a30cf50ba4b05b3d13bc6bae3079",
+			"branch": "master"
+		},
+		{
+			"importpath": "github.com/mitchellh/go-homedir",
+			"repository": "https://github.com/mitchellh/go-homedir",
+			"revision": "b8bc1bf767474819792c23f32d8286a45736f1c6",
+			"branch": "master"
+		},
+		{
+			"importpath": "github.com/sergi/go-diff/diffmatchpatch",
+			"repository": "https://github.com/sergi/go-diff",
+			"revision": "1744e2970ca51c86172c8190fadad617561ed6e7",
+			"branch": "master",
+			"path": "/diffmatchpatch"
+		},
+		{
+			"importpath": "github.com/src-d/gcfg",
+			"repository": "https://github.com/src-d/gcfg",
+			"revision": "f187355171c936ac84a82793659ebb4936bc1c23",
+			"branch": "v1"
+		},
+		{
+			"importpath": "github.com/src-d/go-git-fixtures",
+			"repository": "https://github.com/src-d/go-git-fixtures",
+			"revision": "a29d269c3be65e4d1b20c29133c74e0551e1aa5d",
+			"branch": "master"
+		},
+		{
+			"importpath": "github.com/xanzy/ssh-agent",
+			"repository": "https://github.com/xanzy/ssh-agent",
+			"revision": "ba9c9e33906f58169366275e3450db66139a31a9",
+			"branch": "master"
+		},
+		{
+			"importpath": "golang.org/x/crypto/curve25519",
+			"repository": "https://go.googlesource.com/crypto",
+			"revision": "0fcca4842a8d74bfddc2c96a073bd2a4d2a7a2e8",
+			"branch": "master",
+			"path": "/curve25519"
+		},
+		{
+			"importpath": "golang.org/x/crypto/ed25519",
+			"repository": "https://go.googlesource.com/crypto",
+			"revision": "0fcca4842a8d74bfddc2c96a073bd2a4d2a7a2e8",
+			"branch": "master",
+			"path": "/ed25519"
+		},
+		{
+			"importpath": "golang.org/x/crypto/ssh",
+			"repository": "https://go.googlesource.com/crypto",
+			"revision": "0fcca4842a8d74bfddc2c96a073bd2a4d2a7a2e8",
+			"branch": "master",
+			"path": "/ssh"
+		},
+		{
+			"importpath": "golang.org/x/net/context",
+			"repository": "https://go.googlesource.com/net",
+			"revision": "d866cfc389cec985d6fda2859936a575a55a3ab6",
+			"branch": "master",
+			"path": "/context"
+		},
+		{
+			"importpath": "golang.org/x/text/transform",
+			"repository": "https://go.googlesource.com/text",
+			"revision": "e19ae1496984b1c655b8044a65c0300a3c878dd3",
+			"branch": "master",
+			"path": "/transform"
+		},
+		{
+			"importpath": "golang.org/x/text/unicode/norm",
+			"repository": "https://go.googlesource.com/text",
+			"revision": "e19ae1496984b1c655b8044a65c0300a3c878dd3",
+			"branch": "master",
+			"path": "/unicode/norm"
+		},
+		{
+			"importpath": "gopkg.in/check.v1",
+			"repository": "https://gopkg.in/check.v1",
+			"revision": "20d25e2804050c1cd24a7eea1e7a6447dd0e74ec",
+			"branch": "v1"
+		},
+		{
+			"importpath": "gopkg.in/src-d/go-billy.v3",
+			"repository": "https://gopkg.in/src-d/go-billy.v3",
+			"revision": "c329b7bc7b9d24905d2bc1b85bfa29f7ae266314",
+			"branch": "master"
+		},
+		{
+			"importpath": "gopkg.in/src-d/go-billy.v4",
+			"repository": "https://gopkg.in/src-d/go-billy.v4",
+			"revision": "053dbd006f81a230434f712314aacfb540b52cc5",
+			"branch": "master"
+		},
+		{
+			"importpath": "gopkg.in/src-d/go-git.v4",
+			"repository": "https://gopkg.in/src-d/go-git.v4",
+			"revision": "f9879dd043f84936a1f8acb8a53b74332a7ae135",
+			"branch": "v4"
+		},
+		{
+			"importpath": "gopkg.in/warnings.v0",
+			"repository": "https://gopkg.in/warnings.v0",
+			"revision": "ec4a0fea49c7b46c2aeb0b51aac55779c607e52b",
+			"branch": "master"
+		}
+	]
+}
