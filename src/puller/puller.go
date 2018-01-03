@@ -21,7 +21,10 @@ type diffVersion struct {
 // PullGrafanaAndCommit pulls all the dashboards from Grafana then commits each
 // of them to Git except for those that have a newer or equal version number
 // already versionned in the repo
-func PullGrafanaAndCommit(client *grafana.Client) error {
+func PullGrafanaAndCommit(
+	client *grafana.Client,
+	repoURL string, clonePath string, privateKeyPath string,
+) error {
 	dv := make(map[string]diffVersion)
 
 	dbVersions, err := getDashboardsVersions()
@@ -29,7 +32,7 @@ func PullGrafanaAndCommit(client *grafana.Client) error {
 		return err
 	}
 
-	repo, err := git.Sync(*repoURL, *clonePath, *privateKeyPath)
+	repo, err := git.Sync(repoURL, clonePath, privateKeyPath)
 	if err != nil {
 		return err
 	}
@@ -74,7 +77,7 @@ func PullGrafanaAndCommit(client *grafana.Client) error {
 		}
 	}
 
-	if err = git.Push(repo, *privateKeyPath); err != nil {
+	if err = git.Push(repo, privateKeyPath); err != nil {
 		return err
 	}
 

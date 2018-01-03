@@ -40,7 +40,9 @@ func main() {
 	}
 
 	client := grafana.NewClient(*grafanaURL, *grafanaAPIKey)
-	if err := PullGrafanaAndCommit(client); err != nil {
+	if err := PullGrafanaAndCommit(
+		client, *repoURL, *clonePath, *privateKeyPath,
+	); err != nil {
 		panic(err)
 	}
 }
