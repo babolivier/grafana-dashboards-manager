@@ -1,9 +1,14 @@
 package main
 
 import (
+	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"os"
-	"encoding/json"
+
+	"git"
+
+	gogit "gopkg.in/src-d/go-git.v4"
 )
 
 func getDashboardsVersions() (versions map[string]int, err error) {
@@ -42,4 +47,29 @@ func writeVersions(versions map[string]int, dv map[string]diffVersion) (err erro
 
 	filename := *clonePath + "/versions.json"
 	return rewriteFile(filename, indentedJSON)
+}
+
+func commitNewVersions(
+	versions map[string]int, dv map[string]diffVersion, worktree *gogit.Worktree,
+) (err error) {
+	if err = writeVersions(versions, dv); err != nil {
+		return err
+	}
+
+	if _, err = worktree.Add("versions.json"); err != nil {
+		return err
+	}
+
+	_, err = git.Commit(getCommitMessage(dv), worktree)
+	return
+}
+
+func getCommitMessage(dv map[string]diffVersion) string {
+	message := "Updated dashboards\n"
+
+	for slug, diff := range dv {
+		message += fmt.Sprintf("%s: %d => %d\n", slug, diff.oldVersion, diff.newVersion)
+	}
+
+	return message
 }

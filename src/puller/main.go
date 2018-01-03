@@ -3,6 +3,8 @@ package main
 import (
 	"flag"
 	"os"
+
+	"grafana"
 )
 
 var (
@@ -37,7 +39,8 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err := Pull(); err != nil {
+	client := grafana.NewClient(*grafanaURL, *grafanaAPIKey)
+	if err := Pull(client); err != nil {
 		panic(err)
 	}
 }

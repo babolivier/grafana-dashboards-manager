@@ -3,12 +3,13 @@ package main
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"os"
 
 	"git"
 	"grafana"
+
+	gogit "gopkg.in/src-d/go-git.v4"
 )
 
 type diffVersion struct {
@@ -16,7 +17,7 @@ type diffVersion struct {
 	newVersion int
 }
 
-func Pull() error {
+func Pull(client *grafana.Client) error {
 	dv := make(map[string]diffVersion)
 
 	dbVersions, err := getDashboardsVersions()
@@ -24,11 +25,7 @@ func Pull() error {
 		return err
 	}
 
-	repo, err := git.Sync(
-		*repoURL,
-		*clonePath,
-		*privateKeyPath,
-	)
+	repo, err := git.Sync(*repoURL, *clonePath, *privateKeyPath)
 	if err != nil {
 		return err
 	}
@@ -38,7 +35,6 @@ func Pull() error {
 		return err
 	}
 
-	client := grafana.NewClient(*grafanaURL, *grafanaAPIKey)
 	uris, err := client.GetDashboardsURIs()
 	if err != nil {
 		return err
@@ -52,21 +48,10 @@ func Pull() error {
 
 		version, ok := dbVersions[dashboard.Slug]
 		if !ok || dashboard.Version > version {
-			slugExt := dashboard.Slug + ".json"
-			if err = rewriteFile(
-				*clonePath+"/"+slugExt,
-				dashboard.RawJSON,
+			if err = addDashboardChangesToRepo(
+				dashboard, version, w, &dv,
 			); err != nil {
 				return err
-			}
-
-			if _, err = w.Add(slugExt); err != nil {
-				return err
-			}
-
-			dv[dashboard.Slug] = diffVersion{
-				oldVersion: version,
-				newVersion: dashboard.Version,
 			}
 		}
 	}
@@ -77,22 +62,37 @@ func Pull() error {
 	}
 
 	if !status.IsClean() {
-		if err = writeVersions(dbVersions, dv); err != nil {
+		if err = commitNewVersions(dbVersions, dv, w); err != nil {
 			return err
 		}
-
-		if _, err = w.Add("versions.json"); err != nil {
-			return err
-		}
-
-		if _, err = git.Commit(getCommitMessage(dv), w); err != nil {
-			return err
-		}
-
 	}
 
 	if err = git.Push(repo, *privateKeyPath); err != nil {
 		return err
+	}
+
+	return nil
+}
+
+func addDashboardChangesToRepo(
+	dashboard *grafana.Dashboard, oldVersion int, worktree *gogit.Worktree,
+	dv *map[string]diffVersion,
+) error {
+	slugExt := dashboard.Slug + ".json"
+	if err := rewriteFile(
+		*clonePath+"/"+slugExt,
+		dashboard.RawJSON,
+	); err != nil {
+		return err
+	}
+
+	if _, err := worktree.Add(slugExt); err != nil {
+		return err
+	}
+
+	(*dv)[dashboard.Slug] = diffVersion{
+		oldVersion: oldVersion,
+		newVersion: dashboard.Version,
 	}
 
 	return nil
@@ -122,14 +122,4 @@ func indent(srcJSON []byte) (indentedJSON []byte, err error) {
 
 	indentedJSON, err = ioutil.ReadAll(buf)
 	return
-}
-
-func getCommitMessage(dv map[string]diffVersion) string {
-	message := "Updated dashboards\n"
-
-	for slug, diff := range dv {
-		message += fmt.Sprintf("%s: %d => %d\n", slug, diff.oldVersion, diff.newVersion)
-	}
-
-	return message
 }
