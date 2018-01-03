@@ -25,13 +25,7 @@ func PullGrafanaAndCommit(
 	client *grafana.Client,
 	repoURL string, clonePath string, privateKeyPath string,
 ) error {
-	dv := make(map[string]diffVersion)
-
-	dbVersions, err := getDashboardsVersions()
-	if err != nil {
-		return err
-	}
-
+	// Clone or pull the repo
 	repo, err := git.Sync(repoURL, clonePath, privateKeyPath)
 	if err != nil {
 		return err
@@ -42,23 +36,43 @@ func PullGrafanaAndCommit(
 		return err
 	}
 
+	// Get URIs for all known dashboards
 	uris, err := client.GetDashboardsURIs()
 	if err != nil {
 		return err
 	}
 
+	dv := make(map[string]diffVersion)
+
+	// Load versions
+	dbVersions, err := getDashboardsVersions()
+	if err != nil {
+		return err
+	}
+
+	// Iterate over the dashboards URIs
 	for _, uri := range uris {
+		// Retrieve the dashboard JSON
 		dashboard, err := client.GetDashboard(uri)
 		if err != nil {
 			return err
 		}
 
+		// Check if there's a version for this dashboard in the data loaded from
+		// the "versions.json" file. If there's a version and it's older (lower
+		// version number) than the version we just retrieved from the Grafana
+		// API, or if there's no known version (ok will be false), write the
+		// changes in the repo and add the modified file to the git index.
 		version, ok := dbVersions[dashboard.Slug]
 		if !ok || dashboard.Version > version {
 			if err = addDashboardChangesToRepo(dashboard, w); err != nil {
 				return err
 			}
 
+			// We don't need to check for the value of ok because if ok is false
+			// version will be initialised to the 0-value of the int type, which
+			// is 0, so the previous version number will be considered to be 0,
+			// which is the behaviour we want.
 			dv[dashboard.Slug] = diffVersion{
 				oldVersion: version,
 				newVersion: dashboard.Version,
@@ -71,12 +85,15 @@ func PullGrafanaAndCommit(
 		return err
 	}
 
+	// Check if there's uncommited changes, and if that's the case, commit them.
 	if !status.IsClean() {
 		if err = commitNewVersions(dbVersions, dv, w); err != nil {
 			return err
 		}
 	}
 
+	// Push the changes (we don't do it in the if clause above in case there are
+	// pending commits in the local repo that haven't been pushed yet).
 	if err = git.Push(repo, privateKeyPath); err != nil {
 		return err
 	}
