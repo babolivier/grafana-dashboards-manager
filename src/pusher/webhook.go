@@ -5,6 +5,8 @@ import (
 	"strconv"
 	"strings"
 
+	puller "puller"
+
 	"gopkg.in/go-playground/webhooks.v3"
 	"gopkg.in/go-playground/webhooks.v3/gitlab"
 )
@@ -42,6 +44,14 @@ func HandlePush(payload interface{}, header webhooks.Header) {
 		// TODO: Remove a dashboard when its file gets deleted?
 	}
 
+	// Grafana will auto-update the version number after we pushed the new
+	// dashboards, so we use the puller mechanic to pull the updated numbers and
+	// commit them in the git repo.
+	if err = puller.PullGrafanaAndCommit(
+		grafanaClient, *repoURL, *clonePath, *privateKeyPath,
+	); err != nil {
+		panic(err)
+	}
 }
 
 func pushFile(filename string) error {
