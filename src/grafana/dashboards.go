@@ -2,7 +2,6 @@ package grafana
 
 import (
 	"encoding/json"
-	// "fmt"
 )
 
 type dbSearchResponse struct {
