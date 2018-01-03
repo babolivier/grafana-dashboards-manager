@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"gopkg.in/src-d/go-git.v4"
+	gogit "gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
 
@@ -14,7 +14,7 @@ import (
 	gitssh "gopkg.in/src-d/go-git.v4/plumbing/transport/ssh"
 )
 
-func Sync(repo string, clonePath string, privateKeyPath string) (r *git.Repository, err error) {
+func Sync(repo string, clonePath string, privateKeyPath string) (r *gogit.Repository, err error) {
 	auth, err := getAuth(privateKeyPath)
 	if err != nil {
 		return
@@ -48,15 +48,15 @@ func getAuth(privateKeyPath string) (*gitssh.PublicKeys, error) {
 	return &gitssh.PublicKeys{User: "git", Signer: signer}, nil
 }
 
-func clone(repo string, clonePath string, auth *gitssh.PublicKeys) (*git.Repository, error) {
-	return git.PlainClone(clonePath, false, &git.CloneOptions{
+func clone(repo string, clonePath string, auth *gitssh.PublicKeys) (*gogit.Repository, error) {
+	return gogit.PlainClone(clonePath, false, &gogit.CloneOptions{
 		URL:  repo,
 		Auth: auth,
 	})
 }
 
-func pull(clonePath string, auth *gitssh.PublicKeys) (*git.Repository, error) {
-	r, err := git.PlainOpen(clonePath)
+func pull(clonePath string, auth *gitssh.PublicKeys) (*gogit.Repository, error) {
+	r, err := gogit.PlainOpen(clonePath)
 	if err != nil {
 		return nil, err
 	}
@@ -66,12 +66,12 @@ func pull(clonePath string, auth *gitssh.PublicKeys) (*git.Repository, error) {
 		return nil, err
 	}
 
-	err = w.Pull(&git.PullOptions{
+	err = w.Pull(&gogit.PullOptions{
 		RemoteName: "origin",
 		Auth:       auth,
 	})
 
-	if err == git.NoErrAlreadyUpToDate {
+	if err == gogit.NoErrAlreadyUpToDate {
 		return r, nil
 	}
 
@@ -94,8 +94,8 @@ func dirExists(path string) (bool, error) {
 	return true, err
 }
 
-func Commit(message string, w *git.Worktree) (plumbing.Hash, error) {
-	return w.Commit(message, &git.CommitOptions{
+func Commit(message string, w *gogit.Worktree) (plumbing.Hash, error) {
+	return w.Commit(message, &gogit.CommitOptions{
 		Author: &object.Signature{
 			Name:  "Grafana Dashboard Manager",
 			Email: "grafana@cozycloud.cc",
@@ -104,17 +104,17 @@ func Commit(message string, w *git.Worktree) (plumbing.Hash, error) {
 	})
 }
 
-func Push(r *git.Repository, keyPath string) error {
+func Push(r *gogit.Repository, keyPath string) error {
 	auth, err := getAuth(keyPath)
 	if err != nil {
 		return err
 	}
 
-	err = r.Push(&git.PushOptions{
+	err = r.Push(&gogit.PushOptions{
 		Auth: auth,
 	})
 
-	if err == git.NoErrAlreadyUpToDate {
+	if err == gogit.NoErrAlreadyUpToDate {
 		return nil
 	}
 
