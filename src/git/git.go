@@ -4,11 +4,8 @@ import (
 	"io/ioutil"
 	"os"
 	"strings"
-	"time"
 
 	gogit "gopkg.in/src-d/go-git.v4"
-	"gopkg.in/src-d/go-git.v4/plumbing"
-	"gopkg.in/src-d/go-git.v4/plumbing/object"
 
 	"golang.org/x/crypto/ssh"
 	gitssh "gopkg.in/src-d/go-git.v4/plumbing/transport/ssh"
@@ -92,16 +89,6 @@ func dirExists(path string) (bool, error) {
 	}
 
 	return true, err
-}
-
-func Commit(message string, w *gogit.Worktree) (plumbing.Hash, error) {
-	return w.Commit(message, &gogit.CommitOptions{
-		Author: &object.Signature{
-			Name:  "Grafana Dashboard Manager",
-			Email: "grafana@cozycloud.cc",
-			When:  time.Now(),
-		},
-	})
 }
 
 func Push(r *gogit.Repository, keyPath string) error {
