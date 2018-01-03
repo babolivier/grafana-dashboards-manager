@@ -110,7 +110,13 @@ func Push(r *git.Repository, keyPath string) error {
 		return err
 	}
 
-	return r.Push(&git.PushOptions{
+	err = r.Push(&git.PushOptions{
 		Auth: auth,
 	})
+
+	if err == git.NoErrAlreadyUpToDate {
+		return nil
+	}
+
+	return err
 }
