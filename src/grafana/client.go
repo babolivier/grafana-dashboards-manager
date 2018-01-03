@@ -51,13 +51,23 @@ func (c *Client) request(method string, endpoint string, body []byte) ([]byte, e
 		if resp.StatusCode == http.StatusNotFound {
 			err = fmt.Errorf("%s not found (404)", url)
 		} else {
-			err = fmt.Errorf(
-				"Unknown error: %d; body: %s",
-				resp.StatusCode,
-				string(respBody),
-			)
+			err = newHttpUnknownError(resp.StatusCode)
 		}
 	}
 
 	return respBody, err
+}
+
+type httpUnkownError struct {
+	StatusCode int
+}
+
+func newHttpUnknownError(statusCode int) *httpUnkownError {
+	return &httpUnkownError{
+		StatusCode: statusCode,
+	}
+}
+
+func (e *httpUnkownError) Error() string {
+	return fmt.Sprintf("Unknown HTTP error: %d", e.StatusCode)
 }

@@ -2,6 +2,7 @@ package grafana
 
 import (
 	"encoding/json"
+	"fmt"
 )
 
 type dbSearchResponse struct {
@@ -13,6 +14,17 @@ type dbSearchResponse struct {
 	Starred bool     `json:"isStarred"`
 }
 
+type dbUpdateRequest struct {
+	Dashboard rawJSON `json:"dashboard"`
+	Overwrite bool    `json:"overwrite"`
+}
+
+type dbUpdateResponse struct {
+	Status  string `json:"success"`
+	Version int    `json:"version,omitempty"`
+	Message string `json:"message,omitempty"`
+}
+
 type Dashboard struct {
 	RawJSON []byte
 	Slug    string
@@ -21,7 +33,7 @@ type Dashboard struct {
 
 func (d *Dashboard) UnmarshalJSON(b []byte) (err error) {
 	var body struct {
-		Dashboard interface{} `json:"dashboard"`
+		Dashboard rawJSON `json:"dashboard"`
 		Meta      struct {
 			Slug    string `json:"slug"`
 			Version int    `json:"version"`
@@ -33,7 +45,7 @@ func (d *Dashboard) UnmarshalJSON(b []byte) (err error) {
 	}
 	d.Slug = body.Meta.Slug
 	d.Version = body.Meta.Version
-	d.RawJSON, err = json.Marshal(body.Dashboard)
+	d.RawJSON = body.Dashboard
 
 	return
 }
@@ -62,5 +74,42 @@ func (c *Client) GetDashboard(URI string) (db *Dashboard, err error) {
 
 	db = new(Dashboard)
 	err = json.Unmarshal(body, db)
+	return
+}
+
+func (c *Client) UpdateDashboard(slug string, contentJSON []byte) (err error) {
+	reqBody := dbUpdateRequest{
+		Dashboard: rawJSON(contentJSON),
+		Overwrite: false,
+	}
+
+	reqBodyJSON, err := json.Marshal(reqBody)
+	if err != nil {
+		return
+	}
+
+	var httpError *httpUnkownError
+	var isHttpUnknownError bool
+	respBodyJSON, err := c.request("POST", "dashboards/db", reqBodyJSON)
+	if err != nil {
+		httpError, isHttpUnknownError = err.(*httpUnkownError)
+		// We process httpUnkownError errors below, after we decoded the body
+		if !isHttpUnknownError {
+			return
+		}
+	}
+
+	var respBody dbUpdateResponse
+	if err = json.Unmarshal(respBodyJSON, &respBody); err != nil {
+		return
+	}
+
+	if respBody.Status != "success" && isHttpUnknownError {
+		return fmt.Errorf(
+			"Failed to update dashboard %s (%d %s): %s",
+			slug, httpError.StatusCode, respBody.Status, respBody.Message,
+		)
+	}
+
 	return
 }

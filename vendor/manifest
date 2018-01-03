@@ -100,6 +100,12 @@
 			"branch": "v1"
 		},
 		{
+			"importpath": "gopkg.in/go-playground/webhooks.v3",
+			"repository": "https://gopkg.in/go-playground/webhooks.v3",
+			"revision": "ad5392160cf8f0bfc3be06bc469ce5dfa4cd77c4",
+			"branch": "master"
+		},
+		{
 			"importpath": "gopkg.in/src-d/go-billy.v3",
 			"repository": "https://gopkg.in/src-d/go-billy.v3",
 			"revision": "c329b7bc7b9d24905d2bc1b85bfa29f7ae266314",
