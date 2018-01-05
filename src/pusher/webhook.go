@@ -73,5 +73,5 @@ func pushFile(filename string) error {
 	// Remove the .json part
 	slug := strings.Split(filename, ".json")[0]
 
-	return grafanaClient.UpdateDashboard(slug, fileContent)
+	return grafanaClient.CreateOrUpdateDashboard(slug, fileContent)
 }

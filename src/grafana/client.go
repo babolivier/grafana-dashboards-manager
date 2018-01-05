@@ -37,6 +37,10 @@ func (c *Client) request(method string, endpoint string, body []byte) ([]byte, e
 	authHeader := fmt.Sprintf("Bearer %s", c.APIKey)
 	req.Header.Add("Authorization", authHeader)
 
+	if method != "GET" {
+		req.Header.Add("Content-Type", "application/json")
+	}
+
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
 		return nil, err

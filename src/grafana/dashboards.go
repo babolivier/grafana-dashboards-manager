@@ -77,7 +77,7 @@ func (c *Client) GetDashboard(URI string) (db *Dashboard, err error) {
 	return
 }
 
-func (c *Client) UpdateDashboard(slug string, contentJSON []byte) (err error) {
+func (c *Client) CreateOrUpdateDashboard(slug string, contentJSON []byte) (err error) {
 	reqBody := dbUpdateRequest{
 		Dashboard: rawJSON(contentJSON),
 		Overwrite: false,
