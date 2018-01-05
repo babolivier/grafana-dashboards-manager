@@ -2,25 +2,25 @@ package main
 
 import (
 	"io/ioutil"
-	"strconv"
 	"strings"
 
+	"config"
 	puller "puller"
 
 	"gopkg.in/go-playground/webhooks.v3"
 	"gopkg.in/go-playground/webhooks.v3/gitlab"
 )
 
-func SetupWebhook() error {
+func SetupWebhook(cfg *config.Config) error {
 	hook := gitlab.New(&gitlab.Config{
-		Secret: "mysecret",
+		Secret: cfg.Webhook.Secret,
 	})
 	hook.RegisterEvents(HandlePush, gitlab.PushEvents)
 
 	return webhooks.Run(
 		hook,
-		*webhookInterface+":"+strconv.Itoa(*webhookPort),
-		*webhookPath,
+		cfg.Webhook.Interface+":"+cfg.Webhook.Port,
+		cfg.Webhook.Path,
 	)
 }
 
@@ -52,15 +52,13 @@ func HandlePush(payload interface{}, header webhooks.Header) {
 	// Grafana will auto-update the version number after we pushed the new
 	// dashboards, so we use the puller mechanic to pull the updated numbers and
 	// commit them in the git repo.
-	if err = puller.PullGrafanaAndCommit(
-		grafanaClient, *repoURL, *clonePath, *privateKeyPath,
-	); err != nil {
+	if err = puller.PullGrafanaAndCommit(grafanaClient, cfg); err != nil {
 		panic(err)
 	}
 }
 
 func pushFile(filename string) error {
-	filePath := *clonePath + "/" + filename
+	filePath := cfg.Git.ClonePath + "/" + filename
 	fileContent, err := ioutil.ReadFile(filePath)
 	if err != nil {
 		return err
