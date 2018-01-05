@@ -12,6 +12,7 @@ import (
 	gitssh "gopkg.in/src-d/go-git.v4/plumbing/transport/ssh"
 )
 
+// Sync
 func Sync(cfg config.GitSettings) (r *gogit.Repository, err error) {
 	auth, err := getAuth(cfg.User, cfg.PrivateKeyPath)
 	if err != nil {
@@ -69,14 +70,16 @@ func pull(clonePath string, auth *gitssh.PublicKeys) (*gogit.Repository, error) 
 		Auth:       auth,
 	})
 
-	if err == gogit.NoErrAlreadyUpToDate {
-		return r, nil
-	}
+	if err != nil {
+		if err == gogit.NoErrAlreadyUpToDate {
+			return r, nil
+		}
 
-	// go-git doesn't have an error variable for "non-fast-forward update", so
-	// this is the only way to detect it
-	if strings.HasPrefix(err.Error(), "non-fast-forward update") {
-		return r, nil
+		// go-git doesn't have an error variable for "non-fast-forward update",
+		// so this is the only way to detect it
+		if strings.HasPrefix(err.Error(), "non-fast-forward update") {
+			return r, nil
+		}
 	}
 
 	return r, err
