@@ -12,6 +12,9 @@ git:
     # SSH URL to the repository. The user part (usually "git@" at the beginning
     # of the URL) must be excluded.
     url: "git.company.tld:it/grafana-dashboards.git"
+    # SSH user that can pull and push from and to the git repository. Usually
+    # it's just "git".
+    user: git
     # Path to the private key used to authenticate on Git. It is recommended to
     # use a passphraseless key.
     private_key: /etc/grafana-dashboard-manager/id_rsa_nopasswd
