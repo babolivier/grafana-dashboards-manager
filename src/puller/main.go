@@ -7,11 +7,8 @@ import (
 	"grafana"
 )
 
-var (
-	configFile = flag.String("config", "config.yaml", "Path to the configuration file")
-)
-
 func main() {
+	configFile := flag.String("config", "config.yaml", "Path to the configuration file")
 	flag.Parse()
 
 	cfg, err := config.Load(*configFile)

@@ -15,13 +15,10 @@ var (
 	cfg           *config.Config
 )
 
-var (
-	configFile = flag.String("config", "config.yaml", "Path to the configuration file")
-)
-
 func main() {
 	var err error
 
+	configFile := flag.String("config", "config.yaml", "Path to the configuration file")
 	flag.Parse()
 
 	cfg, err = config.Load(*configFile)
