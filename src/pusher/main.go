@@ -20,16 +20,18 @@ var (
 )
 
 func main() {
+	var err error
+
 	flag.Parse()
 
-	cfg, err := config.Load(*configFile)
+	cfg, err = config.Load(*configFile)
 	if err != nil {
 		panic(err)
 	}
 
 	grafanaClient = grafana.NewClient(cfg.Grafana.BaseURL, cfg.Grafana.APIKey)
 
-	if err := SetupWebhook(cfg); err != nil {
+	if err = SetupWebhook(cfg); err != nil {
 		panic(err)
 	}
 }
