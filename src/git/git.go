@@ -106,5 +106,11 @@ func Push(r *gogit.Repository, cfg config.GitSettings) error {
 		return nil
 	}
 
+	// go-git doesn't have an error variable for "non-fast-forward update", so
+	// this is the only way to detect it
+	if strings.HasPrefix("non-fast-forward update", err.Error()) {
+		return nil
+	}
+
 	return err
 }
