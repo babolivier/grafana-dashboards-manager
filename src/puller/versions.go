@@ -16,10 +16,10 @@ import (
 // If the file doesn't exist, returns an empty map.
 // Return an error if there was an issue looking for the file (except when the
 // file doesn't exist), reading it or formatting its content into a map.
-func getDashboardsVersions() (versions map[string]int, err error) {
+func getDashboardsVersions(clonePath string) (versions map[string]int, err error) {
 	versions = make(map[string]int)
 
-	filename := *clonePath + "/versions.json"
+	filename := clonePath + "/versions.json"
 
 	_, err = os.Stat(filename)
 	if os.IsNotExist(err) {
@@ -43,7 +43,9 @@ func getDashboardsVersions() (versions map[string]int, err error) {
 // "versions.json" file.
 // Returns an error if there was an issue when conerting to JSON, indenting or
 // writing on disk.
-func writeVersions(versions map[string]int, dv map[string]diffVersion) (err error) {
+func writeVersions(
+	versions map[string]int, dv map[string]diffVersion, clonePath string,
+) (err error) {
 	for slug, diff := range dv {
 		versions[slug] = diff.newVersion
 	}
@@ -58,7 +60,7 @@ func writeVersions(versions map[string]int, dv map[string]diffVersion) (err erro
 		return
 	}
 
-	filename := *clonePath + "/versions.json"
+	filename := clonePath + "/versions.json"
 	return rewriteFile(filename, indentedJSON)
 }
 
@@ -69,8 +71,9 @@ func writeVersions(versions map[string]int, dv map[string]diffVersion) (err erro
 // file, adding it to the index or creating the commit.
 func commitNewVersions(
 	versions map[string]int, dv map[string]diffVersion, worktree *gogit.Worktree,
+	clonePath string,
 ) (err error) {
-	if err = writeVersions(versions, dv); err != nil {
+	if err = writeVersions(versions, dv, clonePath); err != nil {
 		return err
 	}
 

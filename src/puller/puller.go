@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"os"
 
+	"config"
 	"git"
 	"grafana"
 
@@ -21,12 +22,9 @@ type diffVersion struct {
 // PullGrafanaAndCommit pulls all the dashboards from Grafana then commits each
 // of them to Git except for those that have a newer or equal version number
 // already versionned in the repo
-func PullGrafanaAndCommit(
-	client *grafana.Client,
-	repoURL string, clonePath string, privateKeyPath string,
-) error {
+func PullGrafanaAndCommit(client *grafana.Client, cfg *config.Config) error {
 	// Clone or pull the repo
-	repo, err := git.Sync(repoURL, clonePath, privateKeyPath)
+	repo, err := git.Sync(cfg.Git.URL, cfg.Git.ClonePath, cfg.Git.PrivateKeyPath)
 	if err != nil {
 		return err
 	}
@@ -45,7 +43,7 @@ func PullGrafanaAndCommit(
 	dv := make(map[string]diffVersion)
 
 	// Load versions
-	dbVersions, err := getDashboardsVersions()
+	dbVersions, err := getDashboardsVersions(cfg.Git.ClonePath)
 	if err != nil {
 		return err
 	}
@@ -65,7 +63,9 @@ func PullGrafanaAndCommit(
 		// changes in the repo and add the modified file to the git index.
 		version, ok := dbVersions[dashboard.Slug]
 		if !ok || dashboard.Version > version {
-			if err = addDashboardChangesToRepo(dashboard, w); err != nil {
+			if err = addDashboardChangesToRepo(
+				dashboard, cfg.Git.ClonePath, w,
+			); err != nil {
 				return err
 			}
 
@@ -87,14 +87,16 @@ func PullGrafanaAndCommit(
 
 	// Check if there's uncommited changes, and if that's the case, commit them.
 	if !status.IsClean() {
-		if err = commitNewVersions(dbVersions, dv, w); err != nil {
+		if err = commitNewVersions(
+			dbVersions, dv, w, cfg.Git.ClonePath,
+		); err != nil {
 			return err
 		}
 	}
 
 	// Push the changes (we don't do it in the if clause above in case there are
 	// pending commits in the local repo that haven't been pushed yet).
-	if err = git.Push(repo, privateKeyPath); err != nil {
+	if err = git.Push(repo, cfg.Git.PrivateKeyPath); err != nil {
 		return err
 	}
 
@@ -105,13 +107,10 @@ func PullGrafanaAndCommit(
 // file to the git index so it can be comitted afterwards.
 // Returns an error if there was an issue with either of the steps.
 func addDashboardChangesToRepo(
-	dashboard *grafana.Dashboard, worktree *gogit.Worktree,
+	dashboard *grafana.Dashboard, clonePath string, worktree *gogit.Worktree,
 ) error {
 	slugExt := dashboard.Slug + ".json"
-	if err := rewriteFile(
-		*clonePath+"/"+slugExt,
-		dashboard.RawJSON,
-	); err != nil {
+	if err := rewriteFile(clonePath+"/"+slugExt, dashboard.RawJSON); err != nil {
 		return err
 	}
 
