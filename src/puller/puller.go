@@ -87,9 +87,7 @@ func PullGrafanaAndCommit(client *grafana.Client, cfg *config.Config) error {
 
 	// Check if there's uncommited changes, and if that's the case, commit them.
 	if !status.IsClean() {
-		if err = commitNewVersions(
-			dbVersions, dv, w, cfg.Git.ClonePath,
-		); err != nil {
+		if err = commitNewVersions(dbVersions, dv, w, cfg); err != nil {
 			return err
 		}
 	}

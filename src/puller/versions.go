@@ -7,6 +7,8 @@ import (
 	"os"
 	"time"
 
+	"config"
+
 	gogit "gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
 )
@@ -71,9 +73,9 @@ func writeVersions(
 // file, adding it to the index or creating the commit.
 func commitNewVersions(
 	versions map[string]int, dv map[string]diffVersion, worktree *gogit.Worktree,
-	clonePath string,
+	cfg *config.Config,
 ) (err error) {
-	if err = writeVersions(versions, dv, clonePath); err != nil {
+	if err = writeVersions(versions, dv, cfg.Git.ClonePath); err != nil {
 		return err
 	}
 
@@ -83,8 +85,8 @@ func commitNewVersions(
 
 	_, err = worktree.Commit(getCommitMessage(dv), &gogit.CommitOptions{
 		Author: &object.Signature{
-			Name:  "Grafana Dashboard Manager",
-			Email: "grafana@cozycloud.cc",
+			Name:  cfg.Git.CommitsAuthor.Name,
+			Email: cfg.Git.CommitsAuthor.Email,
 			When:  time.Now(),
 		},
 	})

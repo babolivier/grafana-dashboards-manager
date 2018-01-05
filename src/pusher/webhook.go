@@ -30,7 +30,7 @@ func HandlePush(payload interface{}, header webhooks.Header) {
 	var err error
 	for _, commit := range pl.Commits {
 		// We don't want to process commits made by the puller
-		if commit.Author.Email == "grafana@cozycloud.cc" {
+		if commit.Author.Email == cfg.Git.CommitsAuthor.Email {
 			continue
 		}
 

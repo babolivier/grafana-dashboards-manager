@@ -22,6 +22,12 @@ git:
     # directory doesn't exist, it will be created and the repository will be
     # cloned into it.
     clone_path: /tmp/grafana-dashboards
+    # Author of the commit created in the puller.
+    commits_author:
+        # Author's name.
+        name: Grafana Dashboard Manager
+        # Author's email.
+        email: grafana-dashboard-manager@company.tld
 
 # Settings to configure the Git webhook. Currently only GitLab webhooks are
 # supported.

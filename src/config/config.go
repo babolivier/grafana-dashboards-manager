@@ -22,10 +22,18 @@ type GrafanaSettings struct {
 
 // GitSettings contains the data required to interact with the Git repository.
 type GitSettings struct {
-	URL            string `yaml:"url"`
-	User           string `yaml:"user"`
-	PrivateKeyPath string `yaml:"private_key"`
-	ClonePath      string `yaml:"clone_path"`
+	URL            string              `yaml:"url"`
+	User           string              `yaml:"user"`
+	PrivateKeyPath string              `yaml:"private_key"`
+	ClonePath      string              `yaml:"clone_path"`
+	CommitsAuthor  CommitsAuthorConfig `yaml:"commits_author"`
+}
+
+// CommitsAuthorConfig contains the configuration (name + email address) to use
+// when commiting to Git.
+type CommitsAuthorConfig struct {
+	Name  string `yaml:"name"`
+	Email string `yaml:"email"`
 }
 
 // WebhookSettings contains the data required to setup the GitLab webhook.
