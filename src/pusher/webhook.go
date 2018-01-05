@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"config"
+	"git"
 	puller "puller"
 
 	"gopkg.in/go-playground/webhooks.v3"
@@ -25,9 +26,14 @@ func SetupWebhook(cfg *config.Config) error {
 }
 
 func HandlePush(payload interface{}, header webhooks.Header) {
+	var err error
+
 	pl := payload.(gitlab.PushEventPayload)
 
-	var err error
+	if _, err = git.Sync(cfg.Git); err != nil {
+		panic(err)
+	}
+
 	for _, commit := range pl.Commits {
 		// We don't want to process commits made by the puller
 		if commit.Author.Email == cfg.Git.CommitsAuthor.Email {

@@ -5,33 +5,34 @@ import (
 	"os"
 	"strings"
 
-	gogit "gopkg.in/src-d/go-git.v4"
+	"config"
 
 	"golang.org/x/crypto/ssh"
+	gogit "gopkg.in/src-d/go-git.v4"
 	gitssh "gopkg.in/src-d/go-git.v4/plumbing/transport/ssh"
 )
 
-func Sync(repo string, clonePath string, privateKeyPath string) (r *gogit.Repository, err error) {
-	auth, err := getAuth(privateKeyPath)
+func Sync(cfg config.GitSettings) (r *gogit.Repository, err error) {
+	auth, err := getAuth(cfg.User, cfg.PrivateKeyPath)
 	if err != nil {
 		return
 	}
 
-	exists, err := dirExists(clonePath)
+	exists, err := dirExists(cfg.ClonePath)
 	if err != nil {
 		return
 	}
 
 	if exists {
-		r, err = pull(clonePath, auth)
+		r, err = pull(cfg.ClonePath, auth)
 	} else {
-		r, err = clone(repo, clonePath, auth)
+		r, err = clone(cfg.URL, cfg.ClonePath, auth)
 	}
 
 	return
 }
 
-func getAuth(privateKeyPath string) (*gitssh.PublicKeys, error) {
+func getAuth(user string, privateKeyPath string) (*gitssh.PublicKeys, error) {
 	privateKey, err := ioutil.ReadFile(privateKeyPath)
 	if err != nil {
 		return nil, err
@@ -91,8 +92,8 @@ func dirExists(path string) (bool, error) {
 	return true, err
 }
 
-func Push(r *gogit.Repository, keyPath string) error {
-	auth, err := getAuth(keyPath)
+func Push(r *gogit.Repository, cfg config.GitSettings) error {
+	auth, err := getAuth(cfg.User, cfg.PrivateKeyPath)
 	if err != nil {
 		return err
 	}

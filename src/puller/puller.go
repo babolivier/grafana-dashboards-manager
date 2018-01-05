@@ -24,7 +24,7 @@ type diffVersion struct {
 // already versionned in the repo
 func PullGrafanaAndCommit(client *grafana.Client, cfg *config.Config) error {
 	// Clone or pull the repo
-	repo, err := git.Sync(cfg.Git.URL, cfg.Git.ClonePath, cfg.Git.PrivateKeyPath)
+	repo, err := git.Sync(cfg.Git)
 	if err != nil {
 		return err
 	}
@@ -94,7 +94,7 @@ func PullGrafanaAndCommit(client *grafana.Client, cfg *config.Config) error {
 
 	// Push the changes (we don't do it in the if clause above in case there are
 	// pending commits in the local repo that haven't been pushed yet).
-	if err = git.Push(repo, cfg.Git.PrivateKeyPath); err != nil {
+	if err = git.Push(repo, cfg.Git); err != nil {
 		return err
 	}
 
