@@ -46,6 +46,9 @@ type WebhookSettings struct {
 	Secret    string `yaml:"secret"`
 }
 
+// Load opens a given configuration file and parses it into an instance of the
+// Config structure.
+// Returns an error if there was an issue whith reading or parsing the file.
 func Load(filename string) (cfg *Config, err error) {
 	rawCfg, err := ioutil.ReadFile(filename)
 	if err != nil {
