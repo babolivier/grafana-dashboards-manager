@@ -29,6 +29,8 @@ type GitSettings struct {
 }
 
 // WebhookSettings contains the data required to setup the GitLab webhook.
+// We declare the port as a string because, although it's a number, it's only
+// used in a string concatenation when creating the webhook.
 type WebhookSettings struct {
 	Interface string `yaml:"interface"`
 	Port      string `yaml:"port"`
