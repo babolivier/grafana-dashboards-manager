@@ -75,7 +75,7 @@ func pull(clonePath string, auth *gitssh.PublicKeys) (*gogit.Repository, error) 
 
 	// go-git doesn't have an error variable for "non-fast-forward update", so
 	// this is the only way to detect it
-	if strings.HasPrefix("non-fast-forward update", err.Error()) {
+	if strings.HasPrefix(err.Error(), "non-fast-forward update") {
 		return r, nil
 	}
 
@@ -108,7 +108,7 @@ func Push(r *gogit.Repository, cfg config.GitSettings) error {
 
 	// go-git doesn't have an error variable for "non-fast-forward update", so
 	// this is the only way to detect it
-	if strings.HasPrefix("non-fast-forward update", err.Error()) {
+	if strings.HasPrefix(err.Error(), "non-fast-forward update") {
 		return nil
 	}
 
