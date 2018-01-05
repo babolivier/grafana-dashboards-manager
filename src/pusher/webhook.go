@@ -29,6 +29,11 @@ func HandlePush(payload interface{}, header webhooks.Header) {
 
 	var err error
 	for _, commit := range pl.Commits {
+		// We don't want to process commits made by the puller
+		if commit.Author.Email == "grafana@cozycloud.cc" {
+			continue
+		}
+
 		for _, addedFile := range commit.Added {
 			if err = pushFile(addedFile); err != nil {
 				panic(err)
