@@ -44,6 +44,13 @@ func HandlePush(payload interface{}, header webhooks.Header) {
 		return
 	}
 
+	// Files to push are stored in a map before being pushed to the Grafana API.
+	// We don't push them in the loop iterating over commits because, in the
+	// case a file is successively updated by two commits pushed at the same
+	// time, it would push the same file several time, which isn't an optimised
+	// behaviour.
+	filesToPush := make(map[string]bool)
+
 	// Iterate over the commits descriptions from the payload
 	for _, commit := range pl.Commits {
 		// We don't want to process commits made by the puller
@@ -53,19 +60,22 @@ func HandlePush(payload interface{}, header webhooks.Header) {
 
 		// Push all added files
 		for _, addedFile := range commit.Added {
-			if err = pushFile(addedFile); err != nil {
-				panic(err)
-			}
+			filesToPush[addedFile] = true
 		}
 
 		// Push all modified files
 		for _, modifiedFile := range commit.Modified {
-			if err = pushFile(modifiedFile); err != nil {
-				panic(err)
-			}
+			filesToPush[modifiedFile] = true
 		}
 
 		// TODO: Remove a dashboard when its file gets deleted?
+	}
+
+	// Push all files to the Grafana API
+	for fileToPush := range filesToPush {
+		if err = pushFile(fileToPush); err != nil {
+			panic(err)
+		}
 	}
 
 	// Grafana will auto-update the version number after we pushed the new
