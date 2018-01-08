@@ -34,14 +34,14 @@ func HandlePush(payload interface{}, header webhooks.Header) {
 	// Process the payload using the right structure
 	pl := payload.(gitlab.PushEventPayload)
 
-	// Clone or pull the repository
-	if _, err = git.Sync(cfg.Git); err != nil {
-		panic(err)
-	}
-
 	// Only push changes made on master to Grafana
 	if pl.Ref != "refs/heads/master" {
 		return
+	}
+
+	// Clone or pull the repository
+	if _, err = git.Sync(cfg.Git); err != nil {
+		panic(err)
 	}
 
 	// Files to push are stored in a map before being pushed to the Grafana API.
