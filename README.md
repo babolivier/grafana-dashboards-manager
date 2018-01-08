@@ -35,7 +35,7 @@ The manager can be built using [gb](https://getgb.io), which can be installed by
 go get github.com/constabulary/gb/...
 ```
 
-It can then be built by cloning the repository and running
+It can then be built by cloning this repository and running
 
 ```bash
 cd grafana-dashboard-manager
