@@ -58,14 +58,18 @@ func HandlePush(payload interface{}, header webhooks.Header) {
 			continue
 		}
 
-		// Push all added files
+		// Push all added files, except the ones which name starts with "test"
 		for _, addedFile := range commit.Added {
-			filesToPush[addedFile] = true
+			if !strings.HasPrefix(addedFile, "test") {
+				filesToPush[addedFile] = true
+			}
 		}
 
-		// Push all modified files
+		// Push all modified files, except the ones which name starts with "test"
 		for _, modifiedFile := range commit.Modified {
-			filesToPush[modifiedFile] = true
+			if !strings.HasPrefix(addedFile, "test") {
+				filesToPush[modifiedFile] = true
+			}
 		}
 
 		// TODO: Remove a dashboard when its file gets deleted?

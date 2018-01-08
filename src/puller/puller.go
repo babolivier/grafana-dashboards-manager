@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"os"
+	"strings"
 
 	"config"
 	"git"
@@ -19,9 +20,10 @@ type diffVersion struct {
 	newVersion int
 }
 
-// PullGrafanaAndCommit pulls all the dashboards from Grafana then commits each
-// of them to Git except for those that have a newer or equal version number
-// already versionned in the repo
+// PullGrafanaAndCommit pulls all the dashboards from Grafana except the ones
+// which name/slug starts with "test", then commits each of them to Git except
+// for those that have a newer or equal version number already versionned in
+// the repo.
 func PullGrafanaAndCommit(client *grafana.Client, cfg *config.Config) error {
 	// Clone or pull the repo
 	repo, err := git.Sync(cfg.Git)
@@ -50,6 +52,11 @@ func PullGrafanaAndCommit(client *grafana.Client, cfg *config.Config) error {
 
 	// Iterate over the dashboards URIs
 	for _, uri := range uris {
+		// Don't process any dashboard which name/slug starts with "test"
+		if strings.HasPrefix(uri, "db/test") {
+			continue
+		}
+
 		// Retrieve the dashboard JSON
 		dashboard, err := client.GetDashboard(uri)
 		if err != nil {
