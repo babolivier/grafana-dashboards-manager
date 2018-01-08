@@ -135,23 +135,29 @@ func dirExists(path string) (bool, error) {
 // structure instance or pushing to the remote. In the latter case, if the error
 // is "already up to date" or "non-fast-forward update", doesn't return any error.
 func Push(r *gogit.Repository, cfg config.GitSettings) error {
+	// Get the authentication structure instance
 	auth, err := getAuth(cfg.User, cfg.PrivateKeyPath)
 	if err != nil {
 		return err
 	}
 
+	// Push to remote
 	err = r.Push(&gogit.PushOptions{
 		Auth: auth,
 	})
 
-	if err == gogit.NoErrAlreadyUpToDate {
-		return nil
-	}
+	// Don't return with an error for "already up to date" or "non-fast-forward
+	// update"
+	if err != nil {
+		if err == gogit.NoErrAlreadyUpToDate {
+			return nil
+		}
 
-	// go-git doesn't have an error variable for "non-fast-forward update", so
-	// this is the only way to detect it
-	if strings.HasPrefix(err.Error(), "non-fast-forward update") {
-		return nil
+		// go-git doesn't have an error variable for "non-fast-forward update", so
+		// this is the only way to detect it
+		if strings.HasPrefix(err.Error(), "non-fast-forward update") {
+			return nil
+		}
 	}
 
 	return err
