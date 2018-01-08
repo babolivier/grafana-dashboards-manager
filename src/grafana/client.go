@@ -6,6 +6,8 @@ import (
 	"io/ioutil"
 	"net/http"
 	"strings"
+
+	"github.com/sirupsen/logrus"
 )
 
 // Client implements a Grafana API client, and contains the instance's base URL
@@ -42,7 +44,14 @@ func NewClient(baseURL string, apiKey string) (c *Client) {
 // status code is neither 200 nor 404 an error of type httpUnkownError is
 // returned.
 func (c *Client) request(method string, endpoint string, body []byte) ([]byte, error) {
-	url := c.BaseURL + "/api/" + endpoint
+	route := "/api/" + endpoint
+
+	logrus.WithFields(logrus.Fields{
+		"route":  route,
+		"method": method,
+	}).Info("Querying the Grafana HTTP API")
+
+	url := c.BaseURL + route
 
 	// Create the request
 	req, err := http.NewRequest(method, url, bytes.NewBuffer(body))
@@ -65,6 +74,12 @@ func (c *Client) request(method string, endpoint string, body []byte) ([]byte, e
 	if err != nil {
 		return nil, err
 	}
+
+	logrus.WithFields(logrus.Fields{
+		"route":  route,
+		"method": method,
+		"code":   resp.StatusCode,
+	}).Info("The Grafana HTTP API responded")
 
 	// Read the response body
 	respBody, err := ioutil.ReadAll(resp.Body)

@@ -7,6 +7,7 @@ import (
 
 	"config"
 
+	"github.com/sirupsen/logrus"
 	"golang.org/x/crypto/ssh"
 	gogit "gopkg.in/src-d/go-git.v4"
 	gitssh "gopkg.in/src-d/go-git.v4/plumbing/transport/ssh"
@@ -33,6 +34,12 @@ func Sync(cfg config.GitSettings) (r *gogit.Repository, err error) {
 	if err != nil {
 		return
 	}
+
+	logrus.WithFields(logrus.Fields{
+		"repo":       cfg.User + "@" + cfg.URL,
+		"clone_path": cfg.ClonePath,
+		"pull":       exists,
+	}).Info("Synchronising the Git repository with the remote")
 
 	// If the clone path already exists, pull from the remote, else clone it.
 	if exists {
@@ -101,12 +108,22 @@ func pull(clonePath string, auth *gitssh.PublicKeys) (*gogit.Repository, error) 
 	// update"
 	if err != nil {
 		if err == gogit.NoErrAlreadyUpToDate {
+			logrus.WithFields(logrus.Fields{
+				"clone_path": clonePath,
+				"error":      err,
+			}).Info("Caught specific non-error")
+
 			return r, nil
 		}
 
 		// go-git doesn't have an error variable for "non-fast-forward update",
 		// so this is the only way to detect it
 		if strings.HasPrefix(err.Error(), "non-fast-forward update") {
+			logrus.WithFields(logrus.Fields{
+				"clone_path": clonePath,
+				"error":      err,
+			}).Info("Caught specific non-error")
+
 			return r, nil
 		}
 	}
@@ -141,6 +158,11 @@ func Push(r *gogit.Repository, cfg config.GitSettings) error {
 		return err
 	}
 
+	logrus.WithFields(logrus.Fields{
+		"repo":       cfg.User + "@" + cfg.URL,
+		"clone_path": cfg.ClonePath,
+	}).Info("Pushing to the remote")
+
 	// Push to remote
 	err = r.Push(&gogit.PushOptions{
 		Auth: auth,
@@ -150,12 +172,24 @@ func Push(r *gogit.Repository, cfg config.GitSettings) error {
 	// update"
 	if err != nil {
 		if err == gogit.NoErrAlreadyUpToDate {
+			logrus.WithFields(logrus.Fields{
+				"repo":       cfg.User + "@" + cfg.URL,
+				"clone_path": cfg.ClonePath,
+				"error":      err,
+			}).Info("Caught specific non-error")
+
 			return nil
 		}
 
 		// go-git doesn't have an error variable for "non-fast-forward update", so
 		// this is the only way to detect it
 		if strings.HasPrefix(err.Error(), "non-fast-forward update") {
+			logrus.WithFields(logrus.Fields{
+				"repo":       cfg.User + "@" + cfg.URL,
+				"clone_path": cfg.ClonePath,
+				"error":      err,
+			}).Info("Caught specific non-error")
+
 			return nil
 		}
 	}

@@ -11,6 +11,7 @@ import (
 	"git"
 	"grafana"
 
+	"github.com/sirupsen/logrus"
 	gogit "gopkg.in/src-d/go-git.v4"
 )
 
@@ -37,6 +38,7 @@ func PullGrafanaAndCommit(client *grafana.Client, cfg *config.Config) error {
 	}
 
 	// Get URIs for all known dashboards
+	logrus.Info("Getting dashboard URIs")
 	uris, err := client.GetDashboardsURIs()
 	if err != nil {
 		return err
@@ -45,6 +47,7 @@ func PullGrafanaAndCommit(client *grafana.Client, cfg *config.Config) error {
 	dv := make(map[string]diffVersion)
 
 	// Load versions
+	logrus.Info("Getting local dashboard versions")
 	dbVersions, err := getDashboardsVersions(cfg.Git.ClonePath)
 	if err != nil {
 		return err
@@ -52,6 +55,10 @@ func PullGrafanaAndCommit(client *grafana.Client, cfg *config.Config) error {
 
 	// Iterate over the dashboards URIs
 	for _, uri := range uris {
+		logrus.WithFields(logrus.Fields{
+			"uri": uri,
+		}).Info("Retrieving dashboard")
+
 		// Retrieve the dashboard JSON
 		dashboard, err := client.GetDashboard(uri)
 		if err != nil {
@@ -61,6 +68,12 @@ func PullGrafanaAndCommit(client *grafana.Client, cfg *config.Config) error {
 		if len(cfg.Grafana.IgnorePrefix) > 0 {
 			lowerCasedName := strings.ToLower(dashboard.Name)
 			if strings.HasPrefix(lowerCasedName, cfg.Grafana.IgnorePrefix) {
+				logrus.WithFields(logrus.Fields{
+					"uri":    uri,
+					"name":   dashboard.Name,
+					"prefix": cfg.Grafana.IgnorePrefix,
+				}).Info("Dashboard name starts with specified prefix, skipping")
+
 				continue
 			}
 		}
@@ -72,6 +85,13 @@ func PullGrafanaAndCommit(client *grafana.Client, cfg *config.Config) error {
 		// changes in the repo and add the modified file to the git index.
 		version, ok := dbVersions[dashboard.Slug]
 		if !ok || dashboard.Version > version {
+			logrus.WithFields(logrus.Fields{
+				"uri":           uri,
+				"name":          dashboard.Name,
+				"local_version": version,
+				"new_version":   dashboard.Version,
+			}).Info("Grafana has a newer version, updating")
+
 			if err = addDashboardChangesToRepo(
 				dashboard, cfg.Git.ClonePath, w,
 			); err != nil {
@@ -96,6 +116,8 @@ func PullGrafanaAndCommit(client *grafana.Client, cfg *config.Config) error {
 
 	// Check if there's uncommited changes, and if that's the case, commit them.
 	if !status.IsClean() {
+		logrus.Info("Comitting changes")
+
 		if err = commitNewVersions(dbVersions, dv, w, cfg); err != nil {
 			return err
 		}

@@ -34,6 +34,12 @@
 			"path": "/diffmatchpatch"
 		},
 		{
+			"importpath": "github.com/sirupsen/logrus",
+			"repository": "https://github.com/sirupsen/logrus",
+			"revision": "d682213848ed68c0a260ca37d6dd5ace8423f5ba",
+			"branch": "master"
+		},
+		{
 			"importpath": "github.com/src-d/gcfg",
 			"repository": "https://github.com/src-d/gcfg",
 			"revision": "f187355171c936ac84a82793659ebb4936bc1c23",
@@ -78,6 +84,13 @@
 			"revision": "d866cfc389cec985d6fda2859936a575a55a3ab6",
 			"branch": "master",
 			"path": "/context"
+		},
+		{
+			"importpath": "golang.org/x/sys/unix",
+			"repository": "https://go.googlesource.com/sys",
+			"revision": "1792d66dc88e503d3cb2400578221cdf1f7fe26f",
+			"branch": "master",
+			"path": "/unix"
 		},
 		{
 			"importpath": "golang.org/x/text/transform",

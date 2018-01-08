@@ -5,6 +5,8 @@ import (
 	"strings"
 
 	"gopkg.in/yaml.v2"
+
+	"github.com/sirupsen/logrus"
 )
 
 // Config is the Go representation of the configuration file. It is filled when
@@ -56,6 +58,10 @@ func Load(filename string) (cfg *Config, err error) {
 	if err != nil {
 		return
 	}
+
+	logrus.WithFields(logrus.Fields{
+		"config_file": filename,
+	}).Info("Loading configuration")
 
 	cfg = new(Config)
 	err = yaml.Unmarshal(rawCfg, cfg)

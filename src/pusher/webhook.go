@@ -9,6 +9,7 @@ import (
 	"git"
 	puller "puller"
 
+	"github.com/sirupsen/logrus"
 	"gopkg.in/go-playground/webhooks.v3"
 	"gopkg.in/go-playground/webhooks.v3/gitlab"
 )
@@ -42,7 +43,13 @@ func HandlePush(payload interface{}, header webhooks.Header) {
 
 	// Clone or pull the repository
 	if _, err = git.Sync(cfg.Git); err != nil {
-		panic(err)
+		logrus.WithFields(logrus.Fields{
+			"error":      err,
+			"repo":       cfg.Git.User + "@" + cfg.Git.URL,
+			"clone_path": cfg.Git.ClonePath,
+		}).Error("Failed to synchronise the Git repository with the remote")
+
+		return
 	}
 
 	// Files to push are stored in a map before being pushed to the Grafana API.
@@ -56,6 +63,12 @@ func HandlePush(payload interface{}, header webhooks.Header) {
 	for _, commit := range pl.Commits {
 		// We don't want to process commits made by the puller
 		if commit.Author.Email == cfg.Git.CommitsAuthor.Email {
+			logrus.WithFields(logrus.Fields{
+				"hash":          commit.ID,
+				"author_email":  commit.Author.Email,
+				"manager_email": cfg.Git.CommitsAuthor.Email,
+			}).Info("Commit was made by the manager, skipping")
+
 			continue
 		}
 
@@ -64,10 +77,19 @@ func HandlePush(payload interface{}, header webhooks.Header) {
 		for _, addedFile := range commit.Added {
 			ignored, err := isIgnored(addedFile)
 			if err != nil {
-				panic(err)
+				logrus.WithFields(logrus.Fields{
+					"error":    err,
+					"filename": addedFile,
+				}).Error("Failed to check if file is to be ignored")
+
+				continue
 			}
 
 			if !ignored {
+				logrus.WithFields(logrus.Fields{
+					"filename": addedFile,
+				}).Info("Setting file as file to push to Grafana")
+
 				filesToPush[addedFile] = true
 			}
 		}
@@ -77,10 +99,19 @@ func HandlePush(payload interface{}, header webhooks.Header) {
 		for _, modifiedFile := range commit.Modified {
 			ignored, err := isIgnored(modifiedFile)
 			if err != nil {
-				panic(err)
+				logrus.WithFields(logrus.Fields{
+					"error":    err,
+					"filename": modifiedFile,
+				}).Error("Failed to check if file is to be ignored")
+
+				continue
 			}
 
 			if !ignored {
+				logrus.WithFields(logrus.Fields{
+					"filename": modifiedFile,
+				}).Info("Setting file as file to push to Grafana")
+
 				filesToPush[modifiedFile] = true
 			}
 		}
@@ -91,7 +122,12 @@ func HandlePush(payload interface{}, header webhooks.Header) {
 	// Push all files to the Grafana API
 	for fileToPush := range filesToPush {
 		if err = pushFile(fileToPush); err != nil {
-			panic(err)
+			logrus.WithFields(logrus.Fields{
+				"error":    err,
+				"filename": fileToPush,
+			}).Error("Failed push the file to Grafana")
+
+			continue
 		}
 	}
 
@@ -99,7 +135,11 @@ func HandlePush(payload interface{}, header webhooks.Header) {
 	// dashboards, so we use the puller mechanic to pull the updated numbers and
 	// commit them in the git repo.
 	if err = puller.PullGrafanaAndCommit(grafanaClient, cfg); err != nil {
-		panic(err)
+		logrus.WithFields(logrus.Fields{
+			"error":      err,
+			"repo":       cfg.Git.User + "@" + cfg.Git.URL,
+			"clone_path": cfg.Git.ClonePath,
+		}).Error("Call to puller returned an error")
 	}
 }
 

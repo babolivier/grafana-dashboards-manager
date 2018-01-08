@@ -5,6 +5,7 @@ import (
 
 	"config"
 	"grafana"
+	"logger"
 )
 
 // The Grafana API client and the config need to be global to the package since
@@ -20,6 +21,8 @@ func main() {
 
 	configFile := flag.String("config", "config.yaml", "Path to the configuration file")
 	flag.Parse()
+
+	logger.LogConfig()
 
 	cfg, err = config.Load(*configFile)
 	if err != nil {

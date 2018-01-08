@@ -5,11 +5,14 @@ import (
 
 	"config"
 	"grafana"
+	"logger"
 )
 
 func main() {
 	configFile := flag.String("config", "config.yaml", "Path to the configuration file")
 	flag.Parse()
+
+	logger.LogConfig()
 
 	cfg, err := config.Load(*configFile)
 	if err != nil {
