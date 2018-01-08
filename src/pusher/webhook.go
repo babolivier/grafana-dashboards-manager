@@ -39,6 +39,11 @@ func HandlePush(payload interface{}, header webhooks.Header) {
 		panic(err)
 	}
 
+	// Only push changes made on master to Grafana
+	if pl.Ref != "refs/heads/master" {
+		return
+	}
+
 	// Iterate over the commits descriptions from the payload
 	for _, commit := range pl.Commits {
 		// We don't want to process commits made by the puller
