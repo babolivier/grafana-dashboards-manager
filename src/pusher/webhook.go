@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"io/ioutil"
 	"strings"
 
@@ -58,16 +59,28 @@ func HandlePush(payload interface{}, header webhooks.Header) {
 			continue
 		}
 
-		// Push all added files, except the ones which name starts with "test"
+		// Push all added files, except the ones describing a dashboard which
+		// name starts with a the prefix specified in the configuration file.
 		for _, addedFile := range commit.Added {
-			if !strings.HasPrefix(addedFile, "test") {
+			ignored, err := isIgnored(addedFile)
+			if err != nil {
+				panic(err)
+			}
+
+			if !ignored {
 				filesToPush[addedFile] = true
 			}
 		}
 
-		// Push all modified files, except the ones which name starts with "test"
+		// Push all modified files, except the ones describing a dashboard which
+		// name starts with a the prefix specified in the configuration file.
 		for _, modifiedFile := range commit.Modified {
-			if !strings.HasPrefix(addedFile, "test") {
+			ignored, err := isIgnored(modifiedFile)
+			if err != nil {
+				panic(err)
+			}
+
+			if !ignored {
 				filesToPush[modifiedFile] = true
 			}
 		}
@@ -105,4 +118,40 @@ func pushFile(filename string) error {
 	slug := strings.Split(filename, ".json")[0]
 
 	return grafanaClient.CreateOrUpdateDashboard(slug, fileContent)
+}
+
+// isIgnored checks whether the file must be ignored, by checking if there's an
+// prefix for ignored files set in the configuration file, and if the dashboard
+// described in the file has a name that starts with this prefix. Returns an
+// error if there was an issue reading or decoding the file.
+// TODO: Optimise this part of the workflow, as all files get open twice (here
+// and in pushFile)
+func isIgnored(filename string) (bool, error) {
+	// If there's no prefix set, no file is ignored
+	if len(cfg.Grafana.IgnorePrefix) == 0 {
+		return false, nil
+	}
+
+	// Read the file's content
+	fileContent, err := ioutil.ReadFile(filename)
+	if err != nil {
+		return false, err
+	}
+
+	// Parse the file's content to find the dashboard's name
+	var dashboardName struct {
+		Name string `json:"title"`
+	}
+	if err = json.Unmarshal(fileContent, &dashboardName); err != nil {
+		return false, err
+	}
+
+	// Compare the lower case dashboar name to the prefix (which has already
+	// been lower cased when loading the configuration file)
+	lowerCaseName := strings.ToLower(dashboardName.Name)
+	if strings.HasPrefix(lowerCaseName, cfg.Grafana.IgnorePrefix) {
+		return true, nil
+	}
+
+	return false, nil
 }

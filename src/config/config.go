@@ -2,6 +2,7 @@ package config
 
 import (
 	"io/ioutil"
+	"strings"
 
 	"gopkg.in/yaml.v2"
 )
@@ -16,8 +17,9 @@ type Config struct {
 
 // GrafanaSettings contains the data required to talk to the Grafana HTTP API.
 type GrafanaSettings struct {
-	BaseURL string `yaml:"base_url"`
-	APIKey  string `yaml:"api_key"`
+	BaseURL      string `yaml:"base_url"`
+	APIKey       string `yaml:"api_key"`
+	IgnorePrefix string `yaml:"ignore_prefix,omitempty"`
 }
 
 // GitSettings contains the data required to interact with the Git repository.
@@ -57,5 +59,6 @@ func Load(filename string) (cfg *Config, err error) {
 
 	cfg = new(Config)
 	err = yaml.Unmarshal(rawCfg, cfg)
+	cfg.Grafana.IgnorePrefix = strings.ToLower(cfg.Grafana.IgnorePrefix)
 	return
 }

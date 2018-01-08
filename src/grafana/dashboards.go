@@ -37,6 +37,7 @@ type dbCreateOrUpdateResponse struct {
 // current version.
 type Dashboard struct {
 	RawJSON []byte
+	Name    string
 	Slug    string
 	Version int
 }
@@ -62,6 +63,24 @@ func (d *Dashboard) UnmarshalJSON(b []byte) (err error) {
 	d.Slug = body.Meta.Slug
 	d.Version = body.Meta.Version
 	d.RawJSON = body.Dashboard
+
+	// Define the dashboard's name from the previously extracted JSON description
+	err = d.setDashboardNameFromRawJSON()
+	return
+}
+
+// setDashboardNameFromJSON finds a dashboard's name from the content of its
+// RawJSON field
+func (d *Dashboard) setDashboardNameFromRawJSON() (err error) {
+	// Define the necessary structure to catch the dashboard's name
+	var dashboard struct {
+		Name string `json:"title"`
+	}
+
+	// Unmarshal the JSON content into the structure and set the dashboard's
+	// name
+	err = json.Unmarshal(d.RawJSON, &dashboard)
+	d.Name = dashboard.Name
 
 	return
 }
