@@ -72,6 +72,9 @@ func (d *Dashboard) UnmarshalJSON(b []byte) (err error) {
 // response body.
 func (c *Client) GetDashboardsURIs() (URIs []string, err error) {
 	resp, err := c.request("GET", "search", nil)
+	if err != nil {
+		return
+	}
 
 	var respBody []dbSearchResponse
 	if err = json.Unmarshal(resp, &respBody); err != nil {
