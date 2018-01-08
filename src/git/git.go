@@ -59,7 +59,7 @@ func getAuth(user string, privateKeyPath string) (*gitssh.PublicKeys, error) {
 		return nil, err
 	}
 
-	return &gitssh.PublicKeys{User: "git", Signer: signer}, nil
+	return &gitssh.PublicKeys{User: user, Signer: signer}, nil
 }
 
 // clone clones a Git repository into a given path, using a given auth.
