@@ -10,6 +10,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"golang.org/x/crypto/ssh"
 	gogit "gopkg.in/src-d/go-git.v4"
+	"gopkg.in/src-d/go-git.v4/plumbing/transport"
 	gitssh "gopkg.in/src-d/go-git.v4/plumbing/transport/ssh"
 )
 
@@ -84,7 +85,8 @@ func clone(repo string, clonePath string, auth *gitssh.PublicKeys) (*gogit.Repos
 // Returns with the go-git representation of the repository.
 // Returns an error if there was an issue opening the repo, getting its work
 // tree or pulling from the remote. In the latter case, if the error is "already
-// up to date" or "non-fast-forward update", doesn't return any error.
+// up to date", "non-fast-forward update" or "remote repository is empty",
+// doesn't return any error.
 func pull(clonePath string, auth *gitssh.PublicKeys) (*gogit.Repository, error) {
 	// Open the repository
 	r, err := gogit.PlainOpen(clonePath)
@@ -108,6 +110,15 @@ func pull(clonePath string, auth *gitssh.PublicKeys) (*gogit.Repository, error) 
 	// update"
 	if err != nil {
 		if err == gogit.NoErrAlreadyUpToDate {
+			logrus.WithFields(logrus.Fields{
+				"clone_path": clonePath,
+				"error":      err,
+			}).Info("Caught specific non-error")
+
+			return r, nil
+		}
+
+		if err == transport.ErrEmptyRemoteRepository {
 			logrus.WithFields(logrus.Fields{
 				"clone_path": clonePath,
 				"error":      err,
@@ -150,7 +161,8 @@ func dirExists(path string) (bool, error) {
 // created from the configuration to authenticate on the remote.
 // Returns with an error if there was an issue creating the authentication
 // structure instance or pushing to the remote. In the latter case, if the error
-// is "already up to date" or "non-fast-forward update", doesn't return any error.
+// is "already up to date", "non-fast-forward update" or "remote repository is
+// empty", doesn't return any error.
 func Push(r *gogit.Repository, cfg config.GitSettings) error {
 	// Get the authentication structure instance
 	auth, err := getAuth(cfg.User, cfg.PrivateKeyPath)
@@ -172,6 +184,16 @@ func Push(r *gogit.Repository, cfg config.GitSettings) error {
 	// update"
 	if err != nil {
 		if err == gogit.NoErrAlreadyUpToDate {
+			logrus.WithFields(logrus.Fields{
+				"repo":       cfg.User + "@" + cfg.URL,
+				"clone_path": cfg.ClonePath,
+				"error":      err,
+			}).Info("Caught specific non-error")
+
+			return nil
+		}
+
+		if err == transport.ErrEmptyRemoteRepository {
 			logrus.WithFields(logrus.Fields{
 				"repo":       cfg.User + "@" + cfg.URL,
 				"clone_path": cfg.ClonePath,
