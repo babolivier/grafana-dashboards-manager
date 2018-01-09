@@ -24,6 +24,8 @@ For every push event on the `master` branch of the repository, it will look at t
 
 It will then call the puller to have all the files up to date. This is mainly done to update the version number of each dashboard, as Grafana updates them automatically when a new or updated dashboard is pushed.
 
+Please note that the pusher currently only pushes new or modified dashboards to the Grafana API. If the file for a dashboard is removed from the Git repository, the dashboard won't be deleted on the Gragana instance.
+
 Because it hosts a webserver, the pusher runs as a daemon and never exists unless it `panic`s because of an error, or it is killed (e.g. with `Ctrl+C`).
 
 
