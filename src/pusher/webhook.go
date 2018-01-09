@@ -167,6 +167,11 @@ func pushFile(filename string) error {
 // TODO: Optimise this part of the workflow, as all files get open twice (here
 // and in pushFile)
 func isIgnored(filename string) (bool, error) {
+	// Always ignore versions.json
+	if strings.HasSuffix(filename, "versions.json") {
+		return true, nil
+	}
+
 	// If there's no prefix set, no file is ignored
 	if len(cfg.Grafana.IgnorePrefix) == 0 {
 		return false, nil
