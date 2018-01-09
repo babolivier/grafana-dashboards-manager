@@ -101,42 +101,15 @@ func pull(clonePath string, auth *gitssh.PublicKeys) (*gogit.Repository, error) 
 	}
 
 	// Pull from remote
-	err = w.Pull(&gogit.PullOptions{
+	if err = w.Pull(&gogit.PullOptions{
 		RemoteName: "origin",
 		Auth:       auth,
-	})
-
-	// Don't return with an error for "already up to date" or "non-fast-forward
-	// update"
-	if err != nil {
-		if err == gogit.NoErrAlreadyUpToDate {
-			logrus.WithFields(logrus.Fields{
-				"clone_path": clonePath,
-				"error":      err,
-			}).Info("Caught specific non-error")
-
-			return r, nil
-		}
-
-		if err == transport.ErrEmptyRemoteRepository {
-			logrus.WithFields(logrus.Fields{
-				"clone_path": clonePath,
-				"error":      err,
-			}).Info("Caught specific non-error")
-
-			return r, nil
-		}
-
-		// go-git doesn't have an error variable for "non-fast-forward update",
-		// so this is the only way to detect it
-		if strings.HasPrefix(err.Error(), "non-fast-forward update") {
-			logrus.WithFields(logrus.Fields{
-				"clone_path": clonePath,
-				"error":      err,
-			}).Info("Caught specific non-error")
-
-			return r, nil
-		}
+	}); err != nil {
+		// Check error against known non-errors
+		err = checkRemoteErrors(err, logrus.Fields{
+			"clone_path": clonePath,
+			"error":      err,
+		})
 	}
 
 	return r, err
@@ -176,44 +149,50 @@ func Push(r *gogit.Repository, cfg config.GitSettings) error {
 	}).Info("Pushing to the remote")
 
 	// Push to remote
-	err = r.Push(&gogit.PushOptions{
+	if err = r.Push(&gogit.PushOptions{
 		Auth: auth,
-	})
+	}); err != nil {
+		// Check error against known non-errors
+		err = checkRemoteErrors(err, logrus.Fields{
+			"repo":       cfg.User + "@" + cfg.URL,
+			"clone_path": cfg.ClonePath,
+			"error":      err,
+		})
+	}
 
-	// Don't return with an error for "already up to date" or "non-fast-forward
-	// update"
-	if err != nil {
-		if err == gogit.NoErrAlreadyUpToDate {
-			logrus.WithFields(logrus.Fields{
-				"repo":       cfg.User + "@" + cfg.URL,
-				"clone_path": cfg.ClonePath,
-				"error":      err,
-			}).Info("Caught specific non-error")
+	return err
+}
 
-			return nil
-		}
+// processRemoteErrors checks an error against known non-errors returned when
+// communicating with the remote. If the error is a non-error, returns nil and
+// logs it with the provided fields. If not, returns the error.
+func checkRemoteErrors(err error, logFields logrus.Fields) error {
+	var nonError bool
 
-		if err == transport.ErrEmptyRemoteRepository {
-			logrus.WithFields(logrus.Fields{
-				"repo":       cfg.User + "@" + cfg.URL,
-				"clone_path": cfg.ClonePath,
-				"error":      err,
-			}).Info("Caught specific non-error")
+	// Check against known non-errors
+	switch err {
+	case gogit.NoErrAlreadyUpToDate:
+		nonError = true
+		break
+	case transport.ErrEmptyRemoteRepository:
+		nonError = true
+		break
+	default:
+		nonError = false
+		break
+	}
 
-			return nil
-		}
+	// go-git doesn't have an error variable for "non-fast-forward update", so
+	// this is the only way to detect it
+	if strings.HasPrefix(err.Error(), "non-fast-forward update") {
+		nonError = true
+	}
 
-		// go-git doesn't have an error variable for "non-fast-forward update", so
-		// this is the only way to detect it
-		if strings.HasPrefix(err.Error(), "non-fast-forward update") {
-			logrus.WithFields(logrus.Fields{
-				"repo":       cfg.User + "@" + cfg.URL,
-				"clone_path": cfg.ClonePath,
-				"error":      err,
-			}).Info("Caught specific non-error")
+	// Log non-error
+	if nonError {
+		logrus.WithFields(logFields).Warn("Caught specific non-error")
 
-			return nil
-		}
+		return nil
 	}
 
 	return err
