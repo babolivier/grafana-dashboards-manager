@@ -1,9 +1,9 @@
 package git
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
-	"strings"
 
 	"config"
 
@@ -33,6 +33,19 @@ func Sync(cfg config.GitSettings) (r *gogit.Repository, err error) {
 	// Check whether the clone path already exists
 	exists, err := dirExists(cfg.ClonePath)
 	if err != nil {
+		return
+	}
+
+	// Check whether the clone path is a Git repository
+	var isRepo bool
+	if isRepo, err = dirExists(cfg.ClonePath + "/.git"); err != nil {
+		return
+	} else if exists && !isRepo {
+		err = fmt.Errorf(
+			"%s already exists but is not a Git repository",
+			cfg.ClonePath,
+		)
+
 		return
 	}
 
