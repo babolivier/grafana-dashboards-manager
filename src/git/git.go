@@ -84,9 +84,8 @@ func clone(repo string, clonePath string, auth *gitssh.PublicKeys) (*gogit.Repos
 // remote using a given auth, in order to be up to date with the remote.
 // Returns with the go-git representation of the repository.
 // Returns an error if there was an issue opening the repo, getting its work
-// tree or pulling from the remote. In the latter case, if the error is "already
-// up to date", "non-fast-forward update" or "remote repository is empty",
-// doesn't return any error.
+// tree or pulling from the remote. In the latter case, if the error is a known
+// non-error, doesn't return any error.
 func pull(clonePath string, auth *gitssh.PublicKeys) (*gogit.Repository, error) {
 	// Open the repository
 	r, err := gogit.PlainOpen(clonePath)
@@ -134,8 +133,7 @@ func dirExists(path string) (bool, error) {
 // created from the configuration to authenticate on the remote.
 // Returns with an error if there was an issue creating the authentication
 // structure instance or pushing to the remote. In the latter case, if the error
-// is "already up to date", "non-fast-forward update" or "remote repository is
-// empty", doesn't return any error.
+// is a known non-error, doesn't return any error.
 func Push(r *gogit.Repository, cfg config.GitSettings) error {
 	// Get the authentication structure instance
 	auth, err := getAuth(cfg.User, cfg.PrivateKeyPath)
@@ -166,6 +164,8 @@ func Push(r *gogit.Repository, cfg config.GitSettings) error {
 // processRemoteErrors checks an error against known non-errors returned when
 // communicating with the remote. If the error is a non-error, returns nil and
 // logs it with the provided fields. If not, returns the error.
+// Current known non-errors are "already up to date" and "remote repository is
+// empty".
 func checkRemoteErrors(err error, logFields logrus.Fields) error {
 	var nonError bool
 
@@ -180,12 +180,6 @@ func checkRemoteErrors(err error, logFields logrus.Fields) error {
 	default:
 		nonError = false
 		break
-	}
-
-	// go-git doesn't have an error variable for "non-fast-forward update", so
-	// this is the only way to detect it
-	if strings.HasPrefix(err.Error(), "non-fast-forward update") {
-		nonError = true
 	}
 
 	// Log non-error
