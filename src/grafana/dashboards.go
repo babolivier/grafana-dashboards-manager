@@ -167,7 +167,8 @@ func (c *Client) CreateOrUpdateDashboard(contentJSON []byte) (err error) {
 
 	if respBody.Status != "success" && isHttpUnknownError {
 		// Get the dashboard's slug for logging
-		slug, err := helpers.GetDashboardSlug(contentJSON)
+		var slug string
+		slug, err = helpers.GetDashboardSlug(contentJSON)
 		if err != nil {
 			return
 		}

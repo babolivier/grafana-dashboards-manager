@@ -109,7 +109,7 @@ func HandlePush(payload interface{}, header webhooks.Header) {
 			logrus.WithFields(logrus.Fields{
 				"error":    err,
 				"filename": fileToPush,
-			}).Error("Failed push the file to Grafana")
+			}).Error("Failed to push the file to Grafana")
 
 			continue
 		}
