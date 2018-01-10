@@ -57,7 +57,7 @@ func HandlePush(payload interface{}, header webhooks.Header) {
 	// case a file is successively updated by two commits pushed at the same
 	// time, it would push the same file several time, which isn't an optimised
 	// behaviour.
-	filesToPush := make(map[string]bool)
+	filesToPush := make(map[string][]byte)
 
 	// Iterate over the commits descriptions from the payload
 	for _, commit := range pl.Commits {
@@ -72,47 +72,31 @@ func HandlePush(payload interface{}, header webhooks.Header) {
 			continue
 		}
 
-		// Push all added files, except the ones describing a dashboard which
-		// name starts with a the prefix specified in the configuration file.
+		// Set all added files to be pushed, except the ones describing a
+		// dashboard which name starts with a the prefix specified in the
+		// configuration file.
 		for _, addedFile := range commit.Added {
-			ignored, err := isIgnored(addedFile)
-			if err != nil {
+			if err = prepareForPush(addedFile, &filesToPush); err != nil {
 				logrus.WithFields(logrus.Fields{
 					"error":    err,
 					"filename": addedFile,
-				}).Error("Failed to check if file is to be ignored")
+				}).Error("Failed to prepare file for push")
 
 				continue
-			}
-
-			if !ignored {
-				logrus.WithFields(logrus.Fields{
-					"filename": addedFile,
-				}).Info("Setting file as file to push to Grafana")
-
-				filesToPush[addedFile] = true
 			}
 		}
 
-		// Push all modified files, except the ones describing a dashboard which
-		// name starts with a the prefix specified in the configuration file.
+		// Set all modified files to be pushed, except the ones describing a
+		// dashboard which name starts with a the prefix specified in the
+		// configuration file.
 		for _, modifiedFile := range commit.Modified {
-			ignored, err := isIgnored(modifiedFile)
-			if err != nil {
+			if err = prepareForPush(modifiedFile, &filesToPush); err != nil {
 				logrus.WithFields(logrus.Fields{
 					"error":    err,
 					"filename": modifiedFile,
-				}).Error("Failed to check if file is to be ignored")
+				}).Error("Failed to prepare file for push")
 
 				continue
-			}
-
-			if !ignored {
-				logrus.WithFields(logrus.Fields{
-					"filename": modifiedFile,
-				}).Info("Setting file as file to push to Grafana")
-
-				filesToPush[modifiedFile] = true
 			}
 		}
 
@@ -120,8 +104,8 @@ func HandlePush(payload interface{}, header webhooks.Header) {
 	}
 
 	// Push all files to the Grafana API
-	for fileToPush := range filesToPush {
-		if err = pushFile(fileToPush); err != nil {
+	for fileToPush, fileContent := range filesToPush {
+		if err = grafanaClient.CreateOrUpdateDashboard(fileContent); err != nil {
 			logrus.WithFields(logrus.Fields{
 				"error":    err,
 				"filename": fileToPush,
@@ -143,45 +127,56 @@ func HandlePush(payload interface{}, header webhooks.Header) {
 	}
 }
 
-// pushFile pushes the content of a given file to the Grafana API in order to
-// create or update a dashboard.
-// Returns an error if there was an issue reading the file or sending its content
-// to the Grafana instance.
-func pushFile(filename string) error {
-	filePath := cfg.Git.ClonePath + "/" + filename
-	fileContent, err := ioutil.ReadFile(filePath)
-	if err != nil {
-		return err
+// prepareForPush reads the file containing the JSON representation of a
+// dashboard, checks if the dashboard is set to be ignored, and if not appends
+// its content to a map, which will be later iterated over to push the contents
+// it contains to the Grafana API.
+// Returns an error if there was an issue reading the file or checking if the
+// dashboard it represents is to be ignored.
+func prepareForPush(
+	filename string, filesToPush *map[string][]byte,
+) (err error) {
+	// Don't set versions.json to be pushed
+	if strings.HasSuffix(filename, "versions.json") {
+		return
 	}
 
-	return grafanaClient.CreateOrUpdateDashboard(fileContent)
+	// Read the file's content
+	fileContent, err := ioutil.ReadFile(filename)
+	if err != nil {
+		return
+	}
+
+	// Check if dashboard is ignored
+	ignored, err := isIgnored(fileContent)
+	if err != nil {
+		return
+	}
+
+	// Append to the list of contents to push to Grafana
+	if !ignored {
+		logrus.WithFields(logrus.Fields{
+			"filename": filename,
+		}).Info("Preparing file to be pushed to Grafana")
+
+		(*filesToPush)[filename] = fileContent
+	}
+
+	return
 }
 
 // isIgnored checks whether the file must be ignored, by checking if there's an
 // prefix for ignored files set in the configuration file, and if the dashboard
 // described in the file has a name that starts with this prefix. Returns an
 // error if there was an issue reading or decoding the file.
-// TODO: Optimise this part of the workflow, as all files get open twice (here
-// and in pushFile)
-func isIgnored(filename string) (bool, error) {
-	// Always ignore versions.json
-	if strings.HasSuffix(filename, "versions.json") {
-		return true, nil
-	}
-
+func isIgnored(dashboardJSON []byte) (bool, error) {
 	// If there's no prefix set, no file is ignored
 	if len(cfg.Grafana.IgnorePrefix) == 0 {
 		return false, nil
 	}
 
-	// Read the file's content
-	fileContent, err := ioutil.ReadFile(filename)
-	if err != nil {
-		return false, err
-	}
-
 	// Parse the file's content to extract its slug
-	slug, err := helpers.GetDashboardSlug(fileContent)
+	slug, err := helpers.GetDashboardSlug(dashboardJSON)
 	if err != nil {
 		return false, err
 	}
