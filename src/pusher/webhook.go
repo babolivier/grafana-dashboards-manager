@@ -154,10 +154,7 @@ func pushFile(filename string) error {
 		return err
 	}
 
-	// Remove the .json part
-	slug := strings.Split(filename, ".json")[0]
-
-	return grafanaClient.CreateOrUpdateDashboard(slug, fileContent)
+	return grafanaClient.CreateOrUpdateDashboard(fileContent)
 }
 
 // isIgnored checks whether the file must be ignored, by checking if there's an

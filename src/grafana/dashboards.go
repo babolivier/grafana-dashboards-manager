@@ -3,6 +3,8 @@ package grafana
 import (
 	"encoding/json"
 	"fmt"
+
+	"grafana/helpers"
 )
 
 // dbSearchResponse represents an element of the response to a dashboard search
@@ -129,12 +131,9 @@ func (c *Client) GetDashboard(URI string) (db *Dashboard, err error) {
 // existing one. The Grafana API decides whether to create or update based on the
 // "id" attribute in the dashboard's JSON: If it's unkown or null, it's a
 // creation, else it's an update.
-// The slug is only used for error reporting, and can differ from the
-// dashboard's actual slug in its JSON content. However, it's recommended to use
-// the same in both places.
 // Returns an error if there was an issue generating the request body, performing
 // the request or decoding the response's body.
-func (c *Client) CreateOrUpdateDashboard(slug string, contentJSON []byte) (err error) {
+func (c *Client) CreateOrUpdateDashboard(contentJSON []byte) (err error) {
 	reqBody := dbCreateOrUpdateRequest{
 		Dashboard: rawJSON(contentJSON),
 		Overwrite: true,
@@ -158,6 +157,11 @@ func (c *Client) CreateOrUpdateDashboard(slug string, contentJSON []byte) (err e
 
 	var respBody dbCreateOrUpdateResponse
 	if err = json.Unmarshal(respBodyJSON, &respBody); err != nil {
+		return
+	}
+
+	slug, err := helpers.GetDashboardSlug(contentJSON)
+	if err != nil {
 		return
 	}
 
