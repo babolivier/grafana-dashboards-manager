@@ -8,12 +8,13 @@ import (
 	"logger"
 )
 
-// The Grafana API client and the config need to be global to the package since
-// we need them in the webhook handlers.
+// Some variables need to be global to the package since we need them in the
+// webhook handlers.
 // TODO: Find a better way to pass it to the handlers
 var (
 	grafanaClient *grafana.Client
 	cfg           *config.Config
+	deleteRemoved = flag.Bool("delete-removed", false, "For each file removed from Git, delete the corresponding dashboard on the Grafana API")
 )
 
 func main() {

@@ -181,3 +181,11 @@ func (c *Client) CreateOrUpdateDashboard(contentJSON []byte) (err error) {
 
 	return
 }
+
+// DeleteDashboard deletes the dashboard identified by a given slug on the
+// Grafana API.
+// Returns an error if the process failed.
+func (c *Client) DeleteDashboard(slug string) (err error) {
+	_, err = c.request("DELETE", "dashboards/db/"+slug, nil)
+	return
+}

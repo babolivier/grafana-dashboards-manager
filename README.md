@@ -24,7 +24,7 @@ For every push event on the `master` branch of the repository, it will look at t
 
 It will then call the puller to have all the files up to date. This is mainly done to update the version number of each dashboard, as Grafana updates them automatically when a new or updated dashboard is pushed.
 
-Please note that the pusher currently only pushes new or modified dashboards to the Grafana API. If the file for a dashboard is removed from the Git repository, the dashboard won't be deleted on the Grafana instance.
+Please note that the pusher currently only pushes new or modified dashboards to the Grafana API. If the file for a dashboard is removed from the Git repository, the dashboard won't be deleted on the Grafana instance, unless specifically asked (see below for more details).
 
 Because it hosts a webserver, the pusher runs as a daemon and never exists unless it `panic`s because of an error, or it is killed (e.g. with `Ctrl+C`).
 
@@ -69,6 +69,8 @@ You can specify a configuration file via the command line flag `--config`, which
 ```
 
 If the `--config` flag isn't present in the command line call, it will default to a `config.yaml` file located in the directory from where the call is made.
+
+The pusher can also be called with the `--delete-removed` flag which will allows it to check for dashboards which files were removed from the Git repository and delete them from Grafana.
 
 ## Configure
 

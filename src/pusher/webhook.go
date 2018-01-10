@@ -52,11 +52,11 @@ func HandlePush(payload interface{}, header webhooks.Header) {
 		return
 	}
 
-	// Files to push are stored in a map before being pushed to the Grafana API.
-	// We don't push them in the loop iterating over commits because, in the
-	// case a file is successively updated by two commits pushed at the same
-	// time, it would push the same file several time, which isn't an optimised
-	// behaviour.
+	// Files to push and their contents are stored in a map before being pushed
+	// to the Grafana API. We don't push them in the loop iterating over commits
+	// because, in the case a file is successively updated by two commits pushed
+	// at the same time, it would push the same file several time, which isn't
+	// an optimised behaviour.
 	filesToPush := make(map[string][]byte)
 
 	// Iterate over the commits descriptions from the payload
@@ -100,7 +100,21 @@ func HandlePush(payload interface{}, header webhooks.Header) {
 			}
 		}
 
-		// TODO: Remove a dashboard when its file gets deleted?
+		// If a file describing a dashboard gets removed from the Git repository,
+		// delete the corresponding dashboard on Grafana, but only if the user
+		// mentionned they want to do so with the correct command line flag.
+		if *deleteRemoved {
+			for _, removedFile := range commit.Removed {
+				if err = deleteDashboard(removedFile); err != nil {
+					logrus.WithFields(logrus.Fields{
+						"error":    err,
+						"filename": removedFile,
+					}).Error("Failed to delete the dashboard")
+				}
+
+				continue
+			}
+		}
 	}
 
 	// Push all files to the Grafana API
@@ -160,6 +174,44 @@ func prepareForPush(
 		}).Info("Preparing file to be pushed to Grafana")
 
 		(*filesToPush)[filename] = fileContent
+	}
+
+	return
+}
+
+// deleteDashboard reads the dashboard described in a given file and, if the file
+// isn't set to be ignored, delete the corresponding dashboard from Grafana.
+// Returns an error if there was an issue reading the file's content, checking
+// if the dashboard is to be ignored, computing its slug or deleting it from
+// Grafana.
+func deleteDashboard(filename string) (err error) {
+	// Don't delete versions.json
+	if strings.HasSuffix(filename, "versions.json") {
+		return
+	}
+
+	// Read the file's content
+	fileContent, err := ioutil.ReadFile(filename)
+	if err != nil {
+		return
+	}
+
+	// Check if dashboard is ignored
+	ignored, err := isIgnored(fileContent)
+	if err != nil {
+		return
+	}
+
+	if !ignored {
+		// Retrieve dashboard slug because we need it in the deletion request.
+		var slug string
+		slug, err = helpers.GetDashboardSlug(fileContent)
+		if err != nil {
+			return
+		}
+
+		// Delete the dashboard
+		err = grafanaClient.DeleteDashboard(slug)
 	}
 
 	return
