@@ -139,6 +139,7 @@ func (c *Client) CreateOrUpdateDashboard(contentJSON []byte) (err error) {
 		Overwrite: true,
 	}
 
+	// Generate the request body's JSON
 	reqBodyJSON, err := json.Marshal(reqBody)
 	if err != nil {
 		return
@@ -146,8 +147,11 @@ func (c *Client) CreateOrUpdateDashboard(contentJSON []byte) (err error) {
 
 	var httpError *httpUnkownError
 	var isHttpUnknownError bool
+	// Send the request
 	respBodyJSON, err := c.request("POST", "dashboards/db", reqBodyJSON)
 	if err != nil {
+		// Check the error against the httpUnkownError type in order to decide
+		// how to process the error
 		httpError, isHttpUnknownError = err.(*httpUnkownError)
 		// We process httpUnkownError errors below, after we decoded the body
 		if !isHttpUnknownError {
@@ -155,17 +159,19 @@ func (c *Client) CreateOrUpdateDashboard(contentJSON []byte) (err error) {
 		}
 	}
 
+	// Decode the response body
 	var respBody dbCreateOrUpdateResponse
 	if err = json.Unmarshal(respBodyJSON, &respBody); err != nil {
 		return
 	}
 
-	slug, err := helpers.GetDashboardSlug(contentJSON)
-	if err != nil {
-		return
-	}
-
 	if respBody.Status != "success" && isHttpUnknownError {
+		// Get the dashboard's slug for logging
+		slug, err := helpers.GetDashboardSlug(contentJSON)
+		if err != nil {
+			return
+		}
+
 		return fmt.Errorf(
 			"Failed to update dashboard %s (%d %s): %s",
 			slug, httpError.StatusCode, respBody.Status, respBody.Message,
