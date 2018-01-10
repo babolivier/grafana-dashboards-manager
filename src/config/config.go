@@ -2,10 +2,10 @@ package config
 
 import (
 	"io/ioutil"
-	"strings"
 
 	"gopkg.in/yaml.v2"
 
+	"github.com/gosimple/slug"
 	"github.com/sirupsen/logrus"
 )
 
@@ -65,6 +65,8 @@ func Load(filename string) (cfg *Config, err error) {
 
 	cfg = new(Config)
 	err = yaml.Unmarshal(rawCfg, cfg)
-	cfg.Grafana.IgnorePrefix = strings.ToLower(cfg.Grafana.IgnorePrefix)
+	// Since we always compare the prefix against a slug, we need to make sure
+	// the prefix is a slug itself.
+	cfg.Grafana.IgnorePrefix = slug.Make(cfg.Grafana.IgnorePrefix)
 	return
 }

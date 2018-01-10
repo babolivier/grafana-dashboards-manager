@@ -66,8 +66,7 @@ func PullGrafanaAndCommit(client *grafana.Client, cfg *config.Config) error {
 		}
 
 		if len(cfg.Grafana.IgnorePrefix) > 0 {
-			lowerCasedName := strings.ToLower(dashboard.Name)
-			if strings.HasPrefix(lowerCasedName, cfg.Grafana.IgnorePrefix) {
+			if strings.HasPrefix(dashboard.Slug, cfg.Grafana.IgnorePrefix) {
 				logrus.WithFields(logrus.Fields{
 					"uri":    uri,
 					"name":   dashboard.Name,

@@ -1,12 +1,12 @@
 package main
 
 import (
-	"encoding/json"
 	"io/ioutil"
 	"strings"
 
 	"config"
 	"git"
+	"grafana/helpers"
 	puller "puller"
 
 	"github.com/sirupsen/logrus"
@@ -183,18 +183,14 @@ func isIgnored(filename string) (bool, error) {
 		return false, err
 	}
 
-	// Parse the file's content to find the dashboard's name
-	var dashboardName struct {
-		Name string `json:"title"`
-	}
-	if err = json.Unmarshal(fileContent, &dashboardName); err != nil {
+	// Parse the file's content to extract its slug
+	slug, err := helpers.GetDashboardSlug(fileContent)
+	if err != nil {
 		return false, err
 	}
 
-	// Compare the lower case dashboar name to the prefix (which has already
-	// been lower cased when loading the configuration file)
-	lowerCaseName := strings.ToLower(dashboardName.Name)
-	if strings.HasPrefix(lowerCaseName, cfg.Grafana.IgnorePrefix) {
+	// Compare the slug against the prefix
+	if strings.HasPrefix(slug, cfg.Grafana.IgnorePrefix) {
 		return true, nil
 	}
 
