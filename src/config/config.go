@@ -1,6 +1,7 @@
 package config
 
 import (
+	"errors"
 	"io/ioutil"
 
 	"gopkg.in/yaml.v2"
@@ -9,12 +10,17 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+var (
+	ErrPusherInvalidSyncMode   = errors.New("Invalid sync mode in the pusher settings")
+	ErrPusherConfigNotMatching = errors.New("The pusher config doesn't match with the one expected from the pusher sync mode")
+)
+
 // Config is the Go representation of the configuration file. It is filled when
 // parsing the said file.
 type Config struct {
 	Grafana GrafanaSettings `yaml:"grafana"`
 	Git     GitSettings     `yaml:"git"`
-	Webhook WebhookSettings `yaml:"webhook"`
+	Pusher  PusherSettings  `yaml:"pusher"`
 }
 
 // GrafanaSettings contains the data required to talk to the Grafana HTTP API.
@@ -40,14 +46,23 @@ type CommitsAuthorConfig struct {
 	Email string `yaml:"email"`
 }
 
-// WebhookSettings contains the data required to setup the GitLab webhook.
-// We declare the port as a string because, although it's a number, it's only
-// used in a string concatenation when creating the webhook.
-type WebhookSettings struct {
-	Interface string `yaml:"interface"`
-	Port      string `yaml:"port"`
-	Path      string `yaml:"path"`
-	Secret    string `yaml:"secret"`
+// PusherConfig contains the data required to setup either the GitLab webhook or
+// the poller.
+// When using the GitLab webhook, we declare the port as a string because,
+// although it's a number, it's only used in a string concatenation when
+// creating the webhook.
+type PusherConfig struct {
+	Interface string `yaml:"interface,omitempty"`
+	Port      string `yaml:"port,omitempty"`
+	Path      string `yaml:"path,omitempty"`
+	Secret    string `yaml:"secret,omitempty"`
+	Interval  int64  `yaml:"interval,omitempty"`
+}
+
+// PusherSettings contains the settings to configure the Git->Grafana pusher.
+type PusherSettings struct {
+	Mode   string       `yaml:"sync_mode"`
+	Config PusherConfig `yaml:"config"`
 }
 
 // Load opens a given configuration file and parses it into an instance of the
@@ -64,9 +79,40 @@ func Load(filename string) (cfg *Config, err error) {
 	}).Info("Loading configuration")
 
 	cfg = new(Config)
-	err = yaml.Unmarshal(rawCfg, cfg)
+	if err = yaml.Unmarshal(rawCfg, cfg); err != nil {
+		return
+	}
 	// Since we always compare the prefix against a slug, we need to make sure
 	// the prefix is a slug itself.
 	cfg.Grafana.IgnorePrefix = slug.Make(cfg.Grafana.IgnorePrefix)
+	// Make sure the pusher's config is valid, as the parser can't do it.
+	err = validatePusherSettings(cfg.Pusher)
 	return
+}
+
+// validatePusherSettings checks the pusher config against the one expected from
+// looking at its sync mode.
+// Returns an error if the sync mode isn't in the allowed modes, or if at least
+// one of the fields expected to hold a non-zero-value holds the zero-value for
+// its type.
+func validatePusherSettings(cfg PusherSettings) error {
+	config := cfg.Config
+	var configValid bool
+	switch cfg.Mode {
+	case "webhook":
+		configValid = len(config.Interface) > 0 && len(config.Port) > 0 &&
+			len(config.Path) > 0 && len(config.Secret) > 0
+		break
+	case "git-pull":
+		configValid = config.Interval > 0
+		break
+	default:
+		return ErrPusherInvalidSyncMode
+	}
+
+	if !configValid {
+		return ErrPusherConfigNotMatching
+	}
+
+	return nil
 }

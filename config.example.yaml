@@ -33,15 +33,33 @@ git:
         # Author's email.
         email: grafana-dashboard-manager@company.tld
 
-# Settings to configure the Git webhook. Currently only GitLab webhooks are
-# supported.
-webhook:
-    # Interface the webhook will listen on.
-    interface: 127.0.0.1
-    # Port the webhool will listen on.
-    port: 8080
-    # Path on which the webhook will live. Full webhook URL will be
-    # interface:port/path.
-    path: /gitlab-webhook
-    # Secret GitLab will use to authenticate the requests.
-    secret: mysecret
+# Configuration for the Git -> Grafana pusher.
+pusher:
+    # Mode which will define how the pusher will sync with the Git remote.
+    # Currently, only two modes are supported:
+    #   webhook:    sets up a webhook which will listen for requests from the
+    #               Git remote, and use the content of a request's body to
+    #               determine what to push to Grafana. Currently only GitLab
+    #               webhooks are supported.
+    #   git-pull:   sets up a routine that will pull from the Git remote on a
+    #               given interval, and compare the updated Git history with the
+    #               previous one to determine what to push to Grafana.
+    sync_mode: webhook
+    # Configuration for the given sync mode. The current uncommented exemple
+    # works for the "webhook" mode. Here's a config example for the "git-pull"
+    # mode:
+    #
+    #   config:
+    #       # Interval at which the remote should be pulled, in seconds.
+    #       interval: 3600
+    #
+    config:
+        # Interface the webhook will listen on.
+        interface: 127.0.0.1
+        # Port the webhool will listen on.
+        port: 8080
+        # Path on which the webhook will live. Full webhook URL will be
+        # interface:port/path.
+        path: /gitlab-webhook
+        # Secret GitLab will use to authenticate the requests.
+        secret: mysecret
