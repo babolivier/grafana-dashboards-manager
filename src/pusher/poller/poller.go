@@ -6,6 +6,7 @@ import (
 	"config"
 	"git"
 	"grafana"
+	puller "puller"
 	"pusher/common"
 
 	"github.com/sirupsen/logrus"
@@ -84,6 +85,17 @@ func poller(
 
 			if delRemoved {
 				common.DeleteDashboards(removed, mergedContents, client)
+			}
+
+			// Grafana will auto-update the version number after we pushed the new
+			// dashboards, so we use the puller mechanic to pull the updated numbers and
+			// commit them in the git repo.
+			if err = puller.PullGrafanaAndCommit(client, cfg); err != nil {
+				logrus.WithFields(logrus.Fields{
+					"error":      err,
+					"repo":       cfg.Git.User + "@" + cfg.Git.URL,
+					"clone_path": cfg.Git.ClonePath,
+				}).Error("Call to puller returned an error")
 			}
 		}
 
