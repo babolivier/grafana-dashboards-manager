@@ -2,3 +2,6 @@ bin
 pkg
 
 config.yaml
+
+_test
+.envrc
