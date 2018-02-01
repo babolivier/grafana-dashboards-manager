@@ -27,9 +27,21 @@
 			"branch": "master"
 		},
 		{
+			"importpath": "github.com/kevinburke/ssh_config",
+			"repository": "https://github.com/kevinburke/ssh_config",
+			"revision": "0ff8514904a8ebfcfb3c32ad73e1f8498a7f81b4",
+			"branch": "master"
+		},
+		{
 			"importpath": "github.com/mitchellh/go-homedir",
 			"repository": "https://github.com/mitchellh/go-homedir",
 			"revision": "b8bc1bf767474819792c23f32d8286a45736f1c6",
+			"branch": "master"
+		},
+		{
+			"importpath": "github.com/pelletier/go-buffruneio",
+			"repository": "https://github.com/pelletier/go-buffruneio",
+			"revision": "e2f66f8164ca709d4c21e815860afd2024e9b894",
 			"branch": "master"
 		},
 		{
@@ -70,6 +82,13 @@
 			"branch": "master"
 		},
 		{
+			"importpath": "golang.org/x/crypto/cast5",
+			"repository": "https://go.googlesource.com/crypto",
+			"revision": "1875d0a70c90e57f11972aefd42276df65e895b9",
+			"branch": "master",
+			"path": "/cast5"
+		},
+		{
 			"importpath": "golang.org/x/crypto/curve25519",
 			"repository": "https://go.googlesource.com/crypto",
 			"revision": "0fcca4842a8d74bfddc2c96a073bd2a4d2a7a2e8",
@@ -82,6 +101,13 @@
 			"revision": "0fcca4842a8d74bfddc2c96a073bd2a4d2a7a2e8",
 			"branch": "master",
 			"path": "/ed25519"
+		},
+		{
+			"importpath": "golang.org/x/crypto/openpgp",
+			"repository": "https://go.googlesource.com/crypto",
+			"revision": "1875d0a70c90e57f11972aefd42276df65e895b9",
+			"branch": "master",
+			"path": "/openpgp"
 		},
 		{
 			"importpath": "golang.org/x/crypto/ssh",
@@ -143,10 +169,16 @@
 			"branch": "master"
 		},
 		{
+			"importpath": "gopkg.in/src-d/go-git-fixtures.v3",
+			"repository": "https://gopkg.in/src-d/go-git-fixtures.v3",
+			"revision": "a29d269c3be65e4d1b20c29133c74e0551e1aa5d",
+			"branch": "master"
+		},
+		{
 			"importpath": "gopkg.in/src-d/go-git.v4",
 			"repository": "https://gopkg.in/src-d/go-git.v4",
-			"revision": "f9879dd043f84936a1f8acb8a53b74332a7ae135",
-			"branch": "v4"
+			"revision": "e9247ce9c5ce12126f646ca3ddf0066e4829bd14",
+			"branch": "master"
 		},
 		{
 			"importpath": "gopkg.in/warnings.v0",
