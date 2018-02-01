@@ -1,6 +1,9 @@
 package webhook
 
 import (
+	"io/ioutil"
+	"path/filepath"
+
 	"config"
 	"git"
 	"grafana"
@@ -49,11 +52,47 @@ func Setup(conf *config.Config, client *grafana.Client, delRemoved bool) (err er
 func HandlePush(payload interface{}, header webhooks.Header) {
 	var err error
 
+	var (
+		added    = make([]string, 0)
+		modified = make([]string, 0)
+		removed  = make([]string, 0)
+		contents = make(map[string][]byte)
+	)
+
 	// Process the payload using the right structure
 	pl := payload.(gitlab.PushEventPayload)
 
 	// Only push changes made on master to Grafana
 	if pl.Ref != "refs/heads/master" {
+		return
+	}
+
+	for _, commit := range pl.Commits {
+		// We don't want to process commits made by the puller
+		if commit.Author.Email == cfg.Git.CommitsAuthor.Email {
+			logrus.WithFields(logrus.Fields{
+				"hash":          commit.ID,
+				"author_email":  commit.Author.Email,
+				"manager_email": cfg.Git.CommitsAuthor.Email,
+			}).Info("Commit was made by the manager, skipping")
+
+			continue
+		}
+
+		for _, addedFile := range commit.Added {
+			added = append(added, addedFile)
+		}
+
+		for _, modifiedFile := range commit.Modified {
+			modified = append(modified, modifiedFile)
+		}
+
+		for _, removedFile := range commit.Removed {
+			removed = append(removed, removedFile)
+		}
+	}
+
+	if err = getFilesContents(removed, &contents, cfg); err != nil {
 		return
 	}
 
@@ -68,76 +107,24 @@ func HandlePush(payload interface{}, header webhooks.Header) {
 		return
 	}
 
-	// Files to push and their contents are stored in a map before being pushed
-	// to the Grafana API. We don't push them in the loop iterating over commits
-	// because, in the case a file is successively updated by two commits pushed
-	// at the same time, it would push the same file several time, which isn't
-	// an optimised behaviour.
-	filesToPush := make(map[string][]byte)
-
-	// Iterate over the commits descriptions from the payload
-	for _, commit := range pl.Commits {
-		// We don't want to process commits made by the puller
-		if commit.Author.Email == cfg.Git.CommitsAuthor.Email {
-			logrus.WithFields(logrus.Fields{
-				"hash":          commit.ID,
-				"author_email":  commit.Author.Email,
-				"manager_email": cfg.Git.CommitsAuthor.Email,
-			}).Info("Commit was made by the manager, skipping")
-
-			continue
-		}
-
-		// Set all added files to be pushed, except the ones describing a
-		// dashboard which name starts with a the prefix specified in the
-		// configuration file.
-		for _, addedFile := range commit.Added {
-			if err = common.PrepareForPush(
-				addedFile, &filesToPush, cfg,
-			); err != nil {
-				logrus.WithFields(logrus.Fields{
-					"error":    err,
-					"filename": addedFile,
-				}).Error("Failed to prepare file for push")
-
-				continue
-			}
-		}
-
-		// Set all modified files to be pushed, except the ones describing a
-		// dashboard which name starts with a the prefix specified in the
-		// configuration file.
-		for _, modifiedFile := range commit.Modified {
-			if err = common.PrepareForPush(
-				modifiedFile, &filesToPush, cfg,
-			); err != nil {
-				logrus.WithFields(logrus.Fields{
-					"error":    err,
-					"filename": modifiedFile,
-				}).Error("Failed to prepare file for push")
-
-				continue
-			}
-		}
-
-		// If a file describing a dashboard gets removed from the Git repository,
-		// delete the corresponding dashboard on Grafana, but only if the user
-		// mentionned they want to do so with the correct command line flag.
-		if deleteRemoved {
-			for _, removedFile := range commit.Removed {
-				if err = common.DeleteDashboard(
-					removedFile, grafanaClient, cfg,
-				); err != nil {
-					logrus.WithFields(logrus.Fields{
-						"error":    err,
-						"filename": removedFile,
-					}).Error("Failed to delete the dashboard")
-				}
-			}
-		}
+	if err = getFilesContents(added, &contents, cfg); err != nil {
+		return
 	}
 
-	common.PushFiles(filesToPush, grafanaClient)
+	if err = getFilesContents(modified, &contents, cfg); err != nil {
+		return
+	}
+
+	if err = common.FilterIgnored(&contents, cfg); err != nil {
+		return
+	}
+
+	common.PushFiles(added, contents, grafanaClient)
+	common.PushFiles(modified, contents, grafanaClient)
+
+	if deleteRemoved {
+		common.DeleteDashboards(removed, contents, grafanaClient)
+	}
 
 	// Grafana will auto-update the version number after we pushed the new
 	// dashboards, so we use the puller mechanic to pull the updated numbers and
@@ -149,4 +136,21 @@ func HandlePush(payload interface{}, header webhooks.Header) {
 			"clone_path": cfg.Git.ClonePath,
 		}).Error("Call to puller returned an error")
 	}
+}
+
+func getFilesContents(
+	filenames []string, contents *map[string][]byte, cfg *config.Config,
+) (err error) {
+	for _, filename := range filenames {
+		// Read the file's content
+		filePath := filepath.Join(cfg.Git.ClonePath, filename)
+		fileContent, err := ioutil.ReadFile(filePath)
+		if err != nil {
+			return err
+		}
+
+		(*contents)[filename] = fileContent
+	}
+
+	return
 }

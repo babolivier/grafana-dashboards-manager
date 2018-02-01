@@ -1,7 +1,6 @@
 package common
 
 import (
-	"io/ioutil"
 	"strings"
 
 	"config"
@@ -11,94 +10,61 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// PrepareForPush reads the file containing the JSON representation of a
-// dashboard, checks if the dashboard is set to be ignored, and if not appends
-// its content to a map, which will be later iterated over to push the contents
-// it contains to the Grafana API.
-// Returns an error if there was an issue reading the file or checking if the
-// dashboard it represents is to be ignored.
-func PrepareForPush(
-	filename string, filesToPush *map[string][]byte, cfg *config.Config,
+func FilterIgnored(
+	filesToPush *map[string][]byte, cfg *config.Config,
 ) (err error) {
-	// Don't set versions.json to be pushed
-	if strings.HasSuffix(filename, "versions.json") {
-		return
-	}
+	for filename, content := range *filesToPush {
+		// Don't set versions.json to be pushed
+		if strings.HasSuffix(filename, "versions.json") {
+			delete(*filesToPush, filename)
+			continue
+		}
 
-	// Read the file's content
-	fileContent, err := ioutil.ReadFile(filename)
-	if err != nil {
-		return
-	}
+		// Check if dashboard is ignored
+		ignored, err := isIgnored(content, cfg)
+		if err != nil {
+			return err
+		}
 
-	// Check if dashboard is ignored
-	ignored, err := isIgnored(fileContent, cfg)
-	if err != nil {
-		return
-	}
-
-	// Append to the list of contents to push to Grafana
-	if !ignored {
-		logrus.WithFields(logrus.Fields{
-			"filename": filename,
-		}).Info("Preparing file to be pushed to Grafana")
-
-		(*filesToPush)[filename] = fileContent
+		if ignored {
+			delete(*filesToPush, filename)
+		}
 	}
 
 	return
 }
 
-func PushFiles(filesToPush map[string][]byte, client *grafana.Client) {
+func PushFiles(filenames []string, contents map[string][]byte, client *grafana.Client) {
 	// Push all files to the Grafana API
-	for fileToPush, fileContent := range filesToPush {
-		if err := client.CreateOrUpdateDashboard(fileContent); err != nil {
+	for _, filename := range filenames {
+		if err := client.CreateOrUpdateDashboard(contents[filename]); err != nil {
 			logrus.WithFields(logrus.Fields{
 				"error":    err,
-				"filename": fileToPush,
+				"filename": filename,
 			}).Error("Failed to push the file to Grafana")
 		}
 	}
 }
 
-// DeleteDashboard reads the dashboard described in a given file and, if the file
-// isn't set to be ignored, delete the corresponding dashboard from Grafana.
-// Returns an error if there was an issue reading the file's content, checking
-// if the dashboard is to be ignored, computing its slug or deleting it from
-// Grafana.
-func DeleteDashboard(
-	filename string, client *grafana.Client, cfg *config.Config,
-) (err error) {
-	// Don't delete versions.json
-	if strings.HasSuffix(filename, "versions.json") {
-		return
-	}
-
-	// Read the file's content
-	fileContent, err := ioutil.ReadFile(filename)
-	if err != nil {
-		return
-	}
-
-	// Check if dashboard is ignored
-	ignored, err := isIgnored(fileContent, cfg)
-	if err != nil {
-		return
-	}
-
-	if !ignored {
+func DeleteDashboards(filenames []string, contents map[string][]byte, client *grafana.Client) {
+	for _, filename := range filenames {
 		// Retrieve dashboard slug because we need it in the deletion request.
-		var slug string
-		slug, err = helpers.GetDashboardSlug(fileContent)
+		slug, err := helpers.GetDashboardSlug(contents[filename])
 		if err != nil {
-			return
+			logrus.WithFields(logrus.Fields{
+				"error":    err,
+				"filename": filename,
+			}).Error("Failed to compute the dahsboard's slug")
 		}
 
-		// Delete the dashboard
-		err = client.DeleteDashboard(slug)
+		if err := client.DeleteDashboard(slug); err != nil {
+			logrus.WithFields(logrus.Fields{
+				"error":    err,
+				"filename": filename,
+				"slug":     slug,
+			}).Error("Failed to remove the dashboard from Grafana")
+		}
 	}
-
-	return
 }
 
 // isIgnored checks whether the file must be ignored, by checking if there's an

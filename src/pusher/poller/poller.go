@@ -45,12 +45,15 @@ func poller(
 		return
 	}
 
+	filesContents, err := repo.GetFilesContentsAtCommit(latestCommit)
+	if err != nil {
+		return
+	}
+
 	previousCommit := latestCommit
+	previousFilesContents := filesContents
 
 	for {
-		addedOrModified := make([]string, 0)
-		removed := make([]string, 0)
-
 		if err = repo.Sync(true); err != nil {
 			return
 		}
@@ -61,56 +64,48 @@ func poller(
 		}
 
 		if previousCommit.Hash.String() != latestCommit.Hash.String() {
-			lineCounts, err := git.GetFilesLineCountsAtCommit(previousCommit)
+			logrus.WithFields(logrus.Fields{
+				"previous_hash": previousCommit.Hash.String(),
+				"new_hash":      latestCommit.Hash.String(),
+			}).Info("New commit(s) detected")
+
+			filesContents, err = repo.GetFilesContentsAtCommit(latestCommit)
 			if err != nil {
 				return err
 			}
 
-			deltas, err := repo.LineCountsDeltasIgnoreManagerCommits(previousCommit, latestCommit)
+			modified, removed, err := repo.GetModifiedAndRemovedFiles(previousCommit, latestCommit)
 			if err != nil {
 				return err
 			}
 
-			for file, delta := range deltas {
-				if delta == 0 {
-					continue
-				}
+			mergedContents := mergeContents(modified, removed, filesContents, previousFilesContents)
+			common.PushFiles(modified, mergedContents, client)
 
-				if delta > 0 {
-					addedOrModified = append(addedOrModified, file)
-				} else if delta < 0 {
-					if -delta < lineCounts[file] {
-						addedOrModified = append(addedOrModified, file)
-					} else {
-						removed = append(removed, file)
-					}
-				}
-			}
-		}
-
-		filesToPush := make(map[string][]byte)
-		for _, filename := range addedOrModified {
-			if err = common.PrepareForPush(filename, &filesToPush, cfg); err != nil {
-				return err
-			}
-		}
-
-		common.PushFiles(filesToPush, client)
-
-		if delRemoved {
-			for _, removedFile := range removed {
-				if err = common.DeleteDashboard(
-					removedFile, client, cfg,
-				); err != nil {
-					logrus.WithFields(logrus.Fields{
-						"error":    err,
-						"filename": removedFile,
-					}).Error("Failed to delete the dashboard")
-				}
+			if delRemoved {
+				common.DeleteDashboards(removed, mergedContents, client)
 			}
 		}
 
 		previousCommit = latestCommit
+		previousFilesContents = filesContents
 		time.Sleep(time.Duration(cfg.Pusher.Config.Interval) * time.Second)
 	}
+}
+
+func mergeContents(
+	modified []string, removed []string,
+	filesContents map[string][]byte, previousFilesContents map[string][]byte,
+) (merged map[string][]byte) {
+	merged = make(map[string][]byte)
+
+	for _, modifiedFile := range modified {
+		merged[modifiedFile] = filesContents[modifiedFile]
+	}
+
+	for _, removedFile := range removed {
+		merged[removedFile] = previousFilesContents[removedFile]
+	}
+
+	return
 }
