@@ -138,9 +138,12 @@ func (r *Repository) Log(fromHash string) (object.CommitIter, error) {
 	})
 }
 
-func (r *Repository) LineCountsDeltasIgnoreManagerCommits(
+func (r *Repository) GetModifiedAndRemovedFiles(
 	from *object.Commit, to *object.Commit,
-) (lineCountsDeltas map[string]int, err error) {
+) (modified []string, removed []string, err error) {
+	modified = make([]string, 0)
+	removed = make([]string, 0)
+
 	// We expect "from" to be the oldest commit, and "to" to be the most recent
 	// one. Because Log() works the other way (in anti-chronological order),
 	// we call it with "to" and not "from" because, that way, we'll go from "to"
@@ -150,7 +153,6 @@ func (r *Repository) LineCountsDeltasIgnoreManagerCommits(
 		return
 	}
 
-	lineCountsDeltas = make(map[string]int)
 	err = iter.ForEach(func(commit *object.Commit) error {
 		if commit.Author.Email == r.cfg.CommitsAuthor.Email {
 			return nil
@@ -166,9 +168,16 @@ func (r *Repository) LineCountsDeltasIgnoreManagerCommits(
 		}
 
 		for _, stat := range stats {
-			// We're getting recent -> old additions and deletions. Because we
-			// want the opposite (old -> recent), we must invert the sign of both.
-			lineCountsDeltas[stat.Name] = stat.Deletion - stat.Addition
+			_, err := commit.File(stat.Name)
+			if err != nil && err != object.ErrFileNotFound {
+				return err
+			}
+
+			if err == object.ErrFileNotFound {
+				removed = append(removed, stat.Name)
+			} else {
+				modified = append(modified, stat.Name)
+			}
 		}
 
 		return nil
@@ -177,29 +186,30 @@ func (r *Repository) LineCountsDeltasIgnoreManagerCommits(
 	return
 }
 
-func GetFilesLineCountsAtCommit(commit *object.Commit) (map[string]int, error) {
+func (r *Repository) GetFilesContentsAtCommit(commit *object.Commit) (map[string][]byte, error) {
+	var content string
+
 	tree, err := commit.Tree()
 	if err != nil {
 		return nil, err
 	}
 
-	lineCounts := make(map[string]int)
+	filesContents := make(map[string][]byte)
 
 	files := tree.Files()
 
-	var lines []string
 	err = files.ForEach(func(file *object.File) error {
-		lines, err = file.Lines()
+		content, err = file.Contents()
 		if err != nil {
 			return err
 		}
 
-		lineCounts[file.Name] = len(lines)
+		filesContents[file.Name] = []byte(content)
 
 		return nil
 	})
 
-	return lineCounts, err
+	return filesContents, err
 }
 
 // getAuth returns the authentication structure instance needed to authenticate
