@@ -10,87 +10,227 @@ import (
 	"github.com/sirupsen/logrus"
 	"golang.org/x/crypto/ssh"
 	gogit "gopkg.in/src-d/go-git.v4"
+	"gopkg.in/src-d/go-git.v4/plumbing"
+	"gopkg.in/src-d/go-git.v4/plumbing/object"
+	"gopkg.in/src-d/go-git.v4/plumbing/storer"
 	"gopkg.in/src-d/go-git.v4/plumbing/transport"
 	gitssh "gopkg.in/src-d/go-git.v4/plumbing/transport/ssh"
 )
 
+type Repository struct {
+	Repo *gogit.Repository
+	cfg  config.GitSettings
+	auth *gitssh.PublicKeys
+}
+
+func NewRepository(cfg config.GitSettings) (r *Repository, invalidRepo bool, err error) {
+	repo, err := gogit.PlainOpen(cfg.ClonePath)
+	if err != nil {
+		if err == gogit.ErrRepositoryNotExists {
+			invalidRepo = true
+		} else {
+			return
+		}
+	}
+
+	r = &Repository{
+		Repo: repo,
+		cfg:  cfg,
+	}
+
+	err = r.getAuth()
+	return
+}
+
 // Sync synchronises a Git repository using a given configuration. "synchronises"
 // means that, if the repo from the configuration isn't already cloned in the
-// directory specified in the configuration, it will clone the repository,
-// else it will simply pull it in order to be up to date with the remote.
+// directory specified in the configuration, it will clone the repository (unless
+// if explicitely told not to), else it will simply pull it in order to be up to
+// date with the remote.
 // Returns the go-git representation of the repository.
 // Returns an error if there was an issue loading the SSH private key, checking
 // whether the clone path already exists, or synchronising the repo with the
 // remote.
-func Sync(cfg config.GitSettings) (r *gogit.Repository, err error) {
-	// Generate an authentication structure instance from the user and private
-	// key
-	auth, err := getAuth(cfg.User, cfg.PrivateKeyPath)
-	if err != nil {
-		return
-	}
-
+func (r *Repository) Sync(dontClone bool) (err error) {
 	// Check whether the clone path already exists
-	exists, err := dirExists(cfg.ClonePath)
+	exists, err := dirExists(r.cfg.ClonePath)
 	if err != nil {
 		return
 	}
 
 	// Check whether the clone path is a Git repository
 	var isRepo bool
-	if isRepo, err = dirExists(cfg.ClonePath + "/.git"); err != nil {
+	if isRepo, err = dirExists(r.cfg.ClonePath + "/.git"); err != nil {
 		return
 	} else if exists && !isRepo {
 		err = fmt.Errorf(
 			"%s already exists but is not a Git repository",
-			cfg.ClonePath,
+			r.cfg.ClonePath,
 		)
 
 		return
 	}
 
 	logrus.WithFields(logrus.Fields{
-		"repo":       cfg.User + "@" + cfg.URL,
-		"clone_path": cfg.ClonePath,
+		"repo":       r.cfg.User + "@" + r.cfg.URL,
+		"clone_path": r.cfg.ClonePath,
 		"pull":       exists,
 	}).Info("Synchronising the Git repository with the remote")
 
 	// If the clone path already exists, pull from the remote, else clone it.
 	if exists {
-		r, err = pull(cfg.ClonePath, auth)
-	} else {
-		r, err = clone(cfg.URL, cfg.ClonePath, auth)
+		err = r.pull()
+	} else if !dontClone {
+		err = r.clone()
 	}
 
 	return
+}
+
+// Push uses a given repository and configuration to push the local history of
+// the said repository to the remote, using an authentication structure instance
+// created from the configuration to authenticate on the remote.
+// Returns with an error if there was an issue creating the authentication
+// structure instance or pushing to the remote. In the latter case, if the error
+// is a known non-error, doesn't return any error.
+func (r *Repository) Push() (err error) {
+	logrus.WithFields(logrus.Fields{
+		"repo":       r.cfg.User + "@" + r.cfg.URL,
+		"clone_path": r.cfg.ClonePath,
+	}).Info("Pushing to the remote")
+
+	// Push to remote
+	if err = r.Repo.Push(&gogit.PushOptions{
+		Auth: r.auth,
+	}); err != nil {
+		// Check error against known non-errors
+		err = checkRemoteErrors(err, logrus.Fields{
+			"repo":       r.cfg.User + "@" + r.cfg.URL,
+			"clone_path": r.cfg.ClonePath,
+			"error":      err,
+		})
+	}
+
+	return err
+}
+
+func (r *Repository) GetLatestCommit() (*object.Commit, error) {
+	// Retrieve latest hash
+	refs, err := r.Repo.References()
+	if err != nil {
+		return nil, err
+	}
+
+	ref, err := refs.Next()
+	if err != nil {
+		return nil, err
+	}
+
+	hash := ref.Hash()
+	return r.Repo.CommitObject(hash)
+}
+
+func (r *Repository) Log(fromHash string) (object.CommitIter, error) {
+	hash := plumbing.NewHash(fromHash)
+
+	return r.Repo.Log(&gogit.LogOptions{
+		From: hash,
+	})
+}
+
+func (r *Repository) LineCountsDeltasIgnoreManagerCommits(
+	from *object.Commit, to *object.Commit,
+) (lineCountsDeltas map[string]int, err error) {
+	// We expect "from" to be the oldest commit, and "to" to be the most recent
+	// one. Because Log() works the other way (in anti-chronological order),
+	// we call it with "to" and not "from" because, that way, we'll go from "to"
+	// to "from".
+	iter, err := r.Log(to.Hash.String())
+	if err != nil {
+		return
+	}
+
+	lineCountsDeltas = make(map[string]int)
+	err = iter.ForEach(func(commit *object.Commit) error {
+		if commit.Author.Email == r.cfg.CommitsAuthor.Email {
+			return nil
+		}
+
+		if commit.Hash.String() == from.Hash.String() {
+			return storer.ErrStop
+		}
+
+		stats, err := commit.Stats()
+		if err != nil {
+			return err
+		}
+
+		for _, stat := range stats {
+			// We're getting recent -> old additions and deletions. Because we
+			// want the opposite (old -> recent), we must invert the sign of both.
+			lineCountsDeltas[stat.Name] = stat.Deletion - stat.Addition
+		}
+
+		return nil
+	})
+
+	return
+}
+
+func GetFilesLineCountsAtCommit(commit *object.Commit) (map[string]int, error) {
+	tree, err := commit.Tree()
+	if err != nil {
+		return nil, err
+	}
+
+	lineCounts := make(map[string]int)
+
+	files := tree.Files()
+
+	var lines []string
+	err = files.ForEach(func(file *object.File) error {
+		lines, err = file.Lines()
+		if err != nil {
+			return err
+		}
+
+		lineCounts[file.Name] = len(lines)
+
+		return nil
+	})
+
+	return lineCounts, err
 }
 
 // getAuth returns the authentication structure instance needed to authenticate
 // on the remote, using a given user and private key path.
 // Returns an error if there was an issue reading the private key file or
 // parsing it.
-func getAuth(user string, privateKeyPath string) (*gitssh.PublicKeys, error) {
-	privateKey, err := ioutil.ReadFile(privateKeyPath)
+func (r *Repository) getAuth() error {
+	privateKey, err := ioutil.ReadFile(r.cfg.PrivateKeyPath)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	signer, err := ssh.ParsePrivateKey(privateKey)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	return &gitssh.PublicKeys{User: user, Signer: signer}, nil
+	r.auth = &gitssh.PublicKeys{User: r.cfg.User, Signer: signer}
+	return nil
 }
 
 // clone clones a Git repository into a given path, using a given auth.
 // Returns the go-git representation of the Git repository.
 // Returns an error if there was an issue cloning the repository.
-func clone(repo string, clonePath string, auth *gitssh.PublicKeys) (*gogit.Repository, error) {
-	return gogit.PlainClone(clonePath, false, &gogit.CloneOptions{
-		URL:  repo,
-		Auth: auth,
+func (r *Repository) clone() (err error) {
+	r.Repo, err = gogit.PlainClone(r.cfg.ClonePath, false, &gogit.CloneOptions{
+		URL:  r.cfg.URL,
+		Auth: r.auth,
 	})
+
+	return err
 }
 
 // pull opens the repository located at a given path, and pulls it from the
@@ -99,32 +239,34 @@ func clone(repo string, clonePath string, auth *gitssh.PublicKeys) (*gogit.Repos
 // Returns an error if there was an issue opening the repo, getting its work
 // tree or pulling from the remote. In the latter case, if the error is a known
 // non-error, doesn't return any error.
-func pull(clonePath string, auth *gitssh.PublicKeys) (*gogit.Repository, error) {
+func (r *Repository) pull() error {
 	// Open the repository
-	r, err := gogit.PlainOpen(clonePath)
+	repo, err := gogit.PlainOpen(r.cfg.ClonePath)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	// Get its worktree
-	w, err := r.Worktree()
+	w, err := repo.Worktree()
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	// Pull from remote
 	if err = w.Pull(&gogit.PullOptions{
 		RemoteName: "origin",
-		Auth:       auth,
+		Auth:       r.auth,
 	}); err != nil {
 		// Check error against known non-errors
 		err = checkRemoteErrors(err, logrus.Fields{
-			"clone_path": clonePath,
+			"clone_path": r.cfg.ClonePath,
 			"error":      err,
 		})
 	}
 
-	return r, err
+	r.Repo = repo
+
+	return err
 }
 
 // dirExists is a snippet checking if a directory exists on the disk.
@@ -139,39 +281,6 @@ func dirExists(path string) (bool, error) {
 	}
 
 	return true, err
-}
-
-// Push uses a given repository and configuration to push the local history of
-// the said repository to the remote, using an authentication structure instance
-// created from the configuration to authenticate on the remote.
-// Returns with an error if there was an issue creating the authentication
-// structure instance or pushing to the remote. In the latter case, if the error
-// is a known non-error, doesn't return any error.
-func Push(r *gogit.Repository, cfg config.GitSettings) error {
-	// Get the authentication structure instance
-	auth, err := getAuth(cfg.User, cfg.PrivateKeyPath)
-	if err != nil {
-		return err
-	}
-
-	logrus.WithFields(logrus.Fields{
-		"repo":       cfg.User + "@" + cfg.URL,
-		"clone_path": cfg.ClonePath,
-	}).Info("Pushing to the remote")
-
-	// Push to remote
-	if err = r.Push(&gogit.PushOptions{
-		Auth: auth,
-	}); err != nil {
-		// Check error against known non-errors
-		err = checkRemoteErrors(err, logrus.Fields{
-			"repo":       cfg.User + "@" + cfg.URL,
-			"clone_path": cfg.ClonePath,
-			"error":      err,
-		})
-	}
-
-	return err
 }
 
 // processRemoteErrors checks an error against known non-errors returned when
