@@ -6,6 +6,7 @@ import (
 	"config"
 	"grafana"
 	"logger"
+	"pusher/poller"
 	"pusher/webhook"
 
 	"github.com/sirupsen/logrus"
@@ -30,7 +31,15 @@ func main() {
 
 	grafanaClient := grafana.NewClient(cfg.Grafana.BaseURL, cfg.Grafana.APIKey)
 
-	if err = webhook.Setup(cfg, grafanaClient, *deleteRemoved); err != nil {
+	switch cfg.Pusher.Mode {
+	case "webhook":
+		err = webhook.Setup(cfg, grafanaClient, *deleteRemoved)
+		break
+	case "git-pull":
+		err = poller.Setup(cfg, grafanaClient, *deleteRemoved)
+	}
+
+	if err != nil {
 		logrus.Panic(err)
 	}
 }
