@@ -6,6 +6,8 @@ import (
 	"config"
 	"grafana"
 	"logger"
+
+	"github.com/sirupsen/logrus"
 )
 
 func main() {
@@ -16,11 +18,11 @@ func main() {
 
 	cfg, err := config.Load(*configFile)
 	if err != nil {
-		panic(err)
+		logrus.Panic(err)
 	}
 
 	client := grafana.NewClient(cfg.Grafana.BaseURL, cfg.Grafana.APIKey)
 	if err := PullGrafanaAndCommit(client, cfg); err != nil {
-		panic(err)
+		logrus.Panic(err)
 	}
 }

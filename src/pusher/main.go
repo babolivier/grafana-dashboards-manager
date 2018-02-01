@@ -6,14 +6,12 @@ import (
 	"config"
 	"grafana"
 	"logger"
+	"pusher/webhook"
+
+	"github.com/sirupsen/logrus"
 )
 
-// Some variables need to be global to the package since we need them in the
-// webhook handlers.
-// TODO: Find a better way to pass it to the handlers
 var (
-	grafanaClient *grafana.Client
-	cfg           *config.Config
 	deleteRemoved = flag.Bool("delete-removed", false, "For each file removed from Git, delete the corresponding dashboard on the Grafana API")
 )
 
@@ -25,14 +23,14 @@ func main() {
 
 	logger.LogConfig()
 
-	cfg, err = config.Load(*configFile)
+	cfg, err := config.Load(*configFile)
 	if err != nil {
-		panic(err)
+		logrus.Panic(err)
 	}
 
-	grafanaClient = grafana.NewClient(cfg.Grafana.BaseURL, cfg.Grafana.APIKey)
+	grafanaClient := grafana.NewClient(cfg.Grafana.BaseURL, cfg.Grafana.APIKey)
 
-	if err = SetupWebhook(cfg); err != nil {
-		panic(err)
+	if err = webhook.Setup(cfg, grafanaClient, *deleteRemoved); err != nil {
+		logrus.Panic(err)
 	}
 }
