@@ -53,8 +53,8 @@ func Setup(cfg *config.Config, client *grafana.Client, delRemoved bool) error {
 // corresponding dashboards from Grafana. It then sleeps for the time specified
 // in the configuration file, before starting its next iteration.
 // Returns an error if there was an issue checking the Git repository status,
-// synchronising it, reading the files' contents or discussing with the Grafana
-// API
+// synchronising it, reading the files' contents, filtering out ignored files,
+// or discussing with the Grafana API.
 func poller(
 	cfg *config.Config, repo *git.Repository, client *grafana.Client,
 	delRemoved bool,
@@ -118,6 +118,13 @@ func poller(
 			// Get a map containing the latest known content of each added,
 			// modified and removed file.
 			mergedContents := mergeContents(modified, removed, filesContents, previousFilesContents)
+
+			// Filter out all files that are supposed to be ignored by the
+			// dashboard manager.
+			if err = common.FilterIgnored(&mergedContents, cfg); err != nil {
+				return
+			}
+
 			// Push the contents of the files that were added or modified to the
 			// Grafana API.
 			common.PushFiles(modified, mergedContents, client)
