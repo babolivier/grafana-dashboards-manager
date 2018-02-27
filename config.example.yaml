@@ -22,7 +22,7 @@ git:
     user: git
     # Path to the private key used to authenticate on Git. It is recommended to
     # use a passphraseless key.
-    private_key: /etc/grafana-dashboard-manager/id_rsa_nopasswd
+    private_key: /etc/grafana-dashboards-manager/id_rsa_nopasswd
     # Path to the directory where the git repository lies on the disk. If the
     # directory doesn't exist, it will be created and the repository will be
     # cloned into it.
@@ -32,7 +32,7 @@ git:
         # Author's name.
         name: Grafana Dashboard Manager
         # Author's email.
-        email: grafana-dashboard-manager@company.tld
+        email: grafana-dashboards-manager@company.tld
 
 # An alternative to Git synchronisation is the "simple sync" mode. This will
 # only back up your dashboards on the disk and won't do anything else.

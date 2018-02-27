@@ -1,6 +1,6 @@
-# Grafana Dashboard Manager
+# Grafana Dashboards Manager
 
-The Grafana Dashboard Manager is a tool to help you manage your Grafana dashboards using Git.
+The Grafana Dashboards Manager is a tool to help you manage your Grafana dashboards using Git.
 
 ## Manager
 
@@ -47,7 +47,7 @@ go get github.com/constabulary/gb/...
 It can then be built by cloning this repository and running
 
 ```bash
-cd grafana-dashboard-manager
+cd grafana-dashboards-manager
 gb build
 ```
 
@@ -72,7 +72,7 @@ Of course, this command line call may depend on the location and name of the bin
 You can specify a configuration file via the command line flag `--config`, which works with both the puller and pusher. For example, here's how the full call should look like when passing a configuration file path to the puller:
 
 ```bash
-./puller --config /etc/grafana-dashboard-manager/config.yaml
+./puller --config /etc/grafana-dashboards-manager/config.yaml
 ```
 
 If the `--config` flag isn't present in the command line call, it will default to a `config.yaml` file located in the directory from where the call is made.
