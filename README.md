@@ -16,15 +16,22 @@ If a dashboard has changes to be commited, its JSON description will be stored i
 
 If there wasn't any error causing it to `panic`, the puller exits once all commited changes have been pushed to the Git remote.
 
+**If you don't wish to version your dashboards via Git** but rather to just back them up on your disk, you can do so using the "simple sync" mode. More info about it can be found in the comments from `config.example.yaml`, under the `git` settings example.
+
 ### The pusher
 
-The pusher is a tool that will expose a webhook to a given address (`interface:port/path`) and process incoming push events sent by the Git remote.
+The pusher is a tool that will watch a repository and relay any changes made to it to the Grafana instance. It works in two modes:
 
-For every push event on the `master` branch of the repository, it will look at the files added or modified by the pushed commits (ignoring the ones with a name starting with a specific prefix (if provided in the configuration file)). It will then proceed to push them to the Grafana API to update modified dashboards or create added ones.
+* `webhook`, which exposes a expose a webhook to a given address (`interface:port/path`) and process incoming push events sent by the Git server
+* `git-pull`, which pulls the `master` branch from the Git remote at a given frequency and checks if any file has been added, modified or removed from the repository
+
+For every push event on the `master` branch of the repository (in `webhook` mode), or every commit on this same branch (in `git-pull` mode), it will look at the files added or modified by the pushed commits (ignoring the ones with a name starting with a specific prefix (if provided in the configuration file)). It will then proceed to push them to the Grafana API to update modified dashboards or create added ones.
 
 It will then call the puller to have all the files up to date. This is mainly done to update the version number of each dashboard, as Grafana updates them automatically when a new or updated dashboard is pushed.
 
-Please note that the pusher currently only pushes new or modified dashboards to the Grafana API. If the file for a dashboard is removed from the Git repository, the dashboard won't be deleted on the Grafana instance, unless specifically asked (see below for more details).
+Please note that, in its default mode, the pusher will only push new or modified dashboards to the Grafana API. If the file for a dashboard is removed from the Git repository, the dashboard won't be deleted on the Grafana instance, unless specifically asked (see below for more details).
+
+Please also note that, because of how deeply intricated with Git it is, the pusher cannot run using the "simple sync" mode mentioned in the puller description from this file.
 
 Because it hosts a webserver, the pusher runs as a daemon and never exists unless it `panic`s because of an error, or it is killed (e.g. with `Ctrl+C`).
 
