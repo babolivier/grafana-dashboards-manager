@@ -10,6 +10,7 @@ grafana:
     # case-insensitive and optional.
     ignore_prefix: test
 
+
 # Settings to interact with the Git repository. Currently only SSH repos are
 # supported.
 git:
@@ -33,7 +34,22 @@ git:
         # Author's email.
         email: grafana-dashboard-manager@company.tld
 
-# Configuration for the Git -> Grafana pusher.
+# An alternative to Git synchronisation is the "simple sync" mode. This will
+# only back up your dashboards on the disk and won't do anything else.
+# Here is an example of the synchronisation for the simple sync mode:
+#
+#   simple_sync:
+#       sync_path: /etc/grafana-dashboards
+#
+# Note that if Git settings are supplied, the settings there will be used even
+# if there are settings for the "simple sync" mode. In this case, if settings for
+# the "simple sync" mode are supplied, they will be ignored by the configuration.
+# Note also that the "simple sync" mode doesn't work with the pusher, which needs
+# Git settings to work.
+
+
+# Configuration for the Git -> Grafana pusher. Optional (only required if you
+# try to run the pusher).
 pusher:
     # Mode which will define how the pusher will sync with the Git remote.
     # Currently, only two modes are supported:

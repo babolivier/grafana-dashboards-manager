@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"os"
 
 	"config"
 	"grafana"
@@ -31,6 +32,11 @@ func main() {
 	cfg, err := config.Load(*configFile)
 	if err != nil {
 		logrus.Panic(err)
+	}
+
+	if cfg.Git == nil || cfg.Pusher == nil {
+		logrus.Info("The git configuration or the pusher configuration (or both) is not defined in the configuration file. The pusher cannot start unless both are defined.")
+		os.Exit(0)
 	}
 
 	// Initialise the Grafana API client.

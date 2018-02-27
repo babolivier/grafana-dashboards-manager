@@ -25,6 +25,18 @@ func main() {
 		logrus.Panic(err)
 	}
 
+	// Tell the user which sync mode we use.
+	var syncMode string
+	if cfg.Git != nil {
+		syncMode = "git"
+	} else {
+		syncMode = "simple"
+	}
+
+	logrus.WithFields(logrus.Fields{
+		"sync_mode": syncMode,
+	}).Info("Sync mode set")
+
 	// Initialise the Grafana API client.
 	client := grafana.NewClient(cfg.Grafana.BaseURL, cfg.Grafana.APIKey)
 	// Run the puller.

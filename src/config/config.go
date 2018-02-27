@@ -13,14 +13,16 @@ import (
 var (
 	ErrPusherInvalidSyncMode   = errors.New("Invalid sync mode in the pusher settings")
 	ErrPusherConfigNotMatching = errors.New("The pusher config doesn't match with the one expected from the pusher sync mode")
+	ErrNoSyncSettings          = errors.New("At least one of the simple_sync or the git settings must be set")
 )
 
 // Config is the Go representation of the configuration file. It is filled when
 // parsing the said file.
 type Config struct {
-	Grafana GrafanaSettings `yaml:"grafana"`
-	Git     GitSettings     `yaml:"git"`
-	Pusher  PusherSettings  `yaml:"pusher"`
+	Grafana    GrafanaSettings     `yaml:"grafana"`
+	SimpleSync *SimpleSyncSettings `yaml:"simple_sync,omitempty"`
+	Git        *GitSettings        `yaml:"git,omitempty"`
+	Pusher     *PusherSettings     `yaml:"pusher,omitempty"`
 }
 
 // GrafanaSettings contains the data required to talk to the Grafana HTTP API.
@@ -28,6 +30,14 @@ type GrafanaSettings struct {
 	BaseURL      string `yaml:"base_url"`
 	APIKey       string `yaml:"api_key"`
 	IgnorePrefix string `yaml:"ignore_prefix,omitempty"`
+}
+
+// SimpleSyncSettings contains minimal data on the synchronisation process. It is
+// expected to be found if there is no Git settings.
+// If both simple sync settings and Git settings are found, the Git settings
+// will be used.
+type SimpleSyncSettings struct {
+	SyncPath string `yaml:"sync_path"`
 }
 
 // GitSettings contains the data required to interact with the Git repository.
@@ -82,6 +92,13 @@ func Load(filename string) (cfg *Config, err error) {
 	if err = yaml.Unmarshal(rawCfg, cfg); err != nil {
 		return
 	}
+
+	// Check if at least one settings group exists for synchronisation settings.
+	if cfg.Git == nil && cfg.SimpleSync == nil {
+		err = ErrNoSyncSettings
+		return
+	}
+
 	// Since we always compare the prefix against a slug, we need to make sure
 	// the prefix is a slug itself.
 	cfg.Grafana.IgnorePrefix = slug.Make(cfg.Grafana.IgnorePrefix)
@@ -95,7 +112,7 @@ func Load(filename string) (cfg *Config, err error) {
 // Returns an error if the sync mode isn't in the allowed modes, or if at least
 // one of the fields expected to hold a non-zero-value holds the zero-value for
 // its type.
-func validatePusherSettings(cfg PusherSettings) error {
+func validatePusherSettings(cfg *PusherSettings) error {
 	config := cfg.Config
 	var configValid bool
 	switch cfg.Mode {

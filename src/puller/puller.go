@@ -25,20 +25,33 @@ type diffVersion struct {
 // which name starts with "test", then commits each of them to Git except for
 // those that have a newer or equal version number already versionned in the
 // repo.
-func PullGrafanaAndCommit(client *grafana.Client, cfg *config.Config) error {
-	// Clone or pull the repo
-	repo, _, err := git.NewRepository(cfg.Git)
-	if err != nil {
-		return err
-	}
+func PullGrafanaAndCommit(client *grafana.Client, cfg *config.Config) (err error) {
+	var repo *git.Repository
+	var w *gogit.Worktree
+	var syncPath string
 
-	if err = repo.Sync(false); err != nil {
-		return err
-	}
+	// Only do Git stuff if there's a configuration for that. On "simple sync"
+	// mode, we don't need do do any versioning.
+	// We need to set syncPath accordingly, though, because we use it later.
+	if cfg.Git != nil {
+		syncPath = cfg.Git.ClonePath
 
-	w, err := repo.Repo.Worktree()
-	if err != nil {
-		return err
+		// Clone or pull the repo
+		repo, _, err = git.NewRepository(cfg.Git)
+		if err != nil {
+			return err
+		}
+
+		if err = repo.Sync(false); err != nil {
+			return err
+		}
+
+		w, err = repo.Repo.Worktree()
+		if err != nil {
+			return err
+		}
+	} else {
+		syncPath = cfg.SimpleSync.SyncPath
 	}
 
 	// Get URIs for all known dashboards
@@ -52,7 +65,7 @@ func PullGrafanaAndCommit(client *grafana.Client, cfg *config.Config) error {
 
 	// Load versions
 	logrus.Info("Getting local dashboard versions")
-	dbVersions, err := getDashboardsVersions(cfg.Git.ClonePath)
+	dbVersions, err := getDashboardsVersions(syncPath)
 	if err != nil {
 		return err
 	}
@@ -96,7 +109,7 @@ func PullGrafanaAndCommit(client *grafana.Client, cfg *config.Config) error {
 			}).Info("Grafana has a newer version, updating")
 
 			if err = addDashboardChangesToRepo(
-				dashboard, cfg.Git.ClonePath, w,
+				dashboard, syncPath, w,
 			); err != nil {
 				return err
 			}
@@ -112,24 +125,36 @@ func PullGrafanaAndCommit(client *grafana.Client, cfg *config.Config) error {
 		}
 	}
 
-	status, err := w.Status()
-	if err != nil {
-		return err
-	}
-
-	// Check if there's uncommited changes, and if that's the case, commit them.
-	if !status.IsClean() {
-		logrus.Info("Comitting changes")
-
-		if err = commitNewVersions(dbVersions, dv, w, cfg); err != nil {
+	// Only do Git stuff if there's a configuration for that. On "simple sync"
+	// mode, we don't need do do any versioning.
+	if cfg.Git != nil {
+		var status gogit.Status
+		status, err = w.Status()
+		if err != nil {
 			return err
 		}
-	}
 
-	// Push the changes (we don't do it in the if clause above in case there are
-	// pending commits in the local repo that haven't been pushed yet).
-	if err = repo.Push(); err != nil {
-		return err
+		// Check if there's uncommited changes, and if that's the case, commit
+		// them.
+		if !status.IsClean() {
+			logrus.Info("Comitting changes")
+
+			if err = commitNewVersions(dbVersions, dv, w, cfg); err != nil {
+				return err
+			}
+		}
+
+		// Push the changes (we don't do it in the if clause above in case there
+		// are pending commits in the local repo that haven't been pushed yet).
+		if err = repo.Push(); err != nil {
+			return err
+		}
+	} else {
+		// If we're on simple sync mode, write versions and don't do anything
+		// else.
+		if err = writeVersions(dbVersions, dv, syncPath); err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -146,8 +171,12 @@ func addDashboardChangesToRepo(
 		return err
 	}
 
-	if _, err := worktree.Add(slugExt); err != nil {
-		return err
+	// If worktree is nil, it means that it hasn't been initialised, which means
+	// the sync mode is "simple sync" and not Git.
+	if worktree != nil {
+		if _, err := worktree.Add(slugExt); err != nil {
+			return err
+		}
 	}
 
 	return nil

@@ -22,7 +22,7 @@ import (
 // authentication data needed to talk to the Git remote.
 type Repository struct {
 	Repo *gogit.Repository
-	cfg  config.GitSettings
+	cfg  *config.GitSettings
 	auth *gitssh.PublicKeys
 }
 
@@ -32,7 +32,7 @@ type Repository struct {
 // and needs the repository to be cloned from remote before it is usable.
 // Returns an error if there was an issue opening the clone path or loading
 // authentication data.
-func NewRepository(cfg config.GitSettings) (r *Repository, invalidRepo bool, err error) {
+func NewRepository(cfg *config.GitSettings) (r *Repository, invalidRepo bool, err error) {
 	// Load the repository.
 	repo, err := gogit.PlainOpen(cfg.ClonePath)
 	if err != nil {
