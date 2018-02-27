@@ -20,7 +20,7 @@ If there wasn't any error causing it to `panic`, the puller exits once all commi
 
 The pusher is a tool that will expose a webhook to a given address (`interface:port/path`) and process incoming push events sent by the Git remote.
 
-For every push event on the `master` branch of the repository, it will look at the files added or modifed by the pushed commits (ignoring the ones with a name starting with a specific prefix (if provided in the configuration file)). It will then proceed to push them to the Grafana API to update modified dashboards or create added ones.
+For every push event on the `master` branch of the repository, it will look at the files added or modified by the pushed commits (ignoring the ones with a name starting with a specific prefix (if provided in the configuration file)). It will then proceed to push them to the Grafana API to update modified dashboards or create added ones.
 
 It will then call the puller to have all the files up to date. This is mainly done to update the version number of each dashboard, as Grafana updates them automatically when a new or updated dashboard is pushed.
 
