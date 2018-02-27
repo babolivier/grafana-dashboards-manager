@@ -31,7 +31,8 @@ func Setup(conf *config.Config, client *grafana.Client, delRemoved bool) (err er
 	grafanaClient = client
 	deleteRemoved = delRemoved
 
-	// Load the Git repository
+	// Load the Git repository.
+	var needsSync bool
 	repo, needsSync, err = git.NewRepository(cfg.Git)
 	if err != nil {
 		return err

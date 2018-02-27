@@ -122,7 +122,7 @@ func poller(
 			// Filter out all files that are supposed to be ignored by the
 			// dashboard manager.
 			if err = common.FilterIgnored(&mergedContents, cfg); err != nil {
-				return
+				return err
 			}
 
 			// Push the contents of the files that were added or modified to the
