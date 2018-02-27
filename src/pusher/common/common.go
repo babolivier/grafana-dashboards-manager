@@ -10,6 +10,11 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+// FilterIgnored takes a map mapping files' names to their contents and remove
+// all the files that are supposed to be ignored by the dashboard manager.
+// An ignored file is either named "versions.json" or describing a dashboard
+// which slug starts with a given prefix.
+// Returns an error if the slug couldn't be tested against the prefix.
 func FilterIgnored(
 	filesToPush *map[string][]byte, cfg *config.Config,
 ) (err error) {
@@ -34,6 +39,12 @@ func FilterIgnored(
 	return
 }
 
+// PushFiles takes a slice of files' names and a map mapping a file's name to its
+// content, and iterates over the first slice. For each file name, it will push
+// to Grafana the content from the map that matches the name, as a creation or
+// an update of an existing dashboard.
+// Logs any errors encountered during an iteration, but doesn't return until all
+// creation and/or update requests have been performed.
 func PushFiles(filenames []string, contents map[string][]byte, client *grafana.Client) {
 	// Push all files to the Grafana API
 	for _, filename := range filenames {
@@ -46,6 +57,12 @@ func PushFiles(filenames []string, contents map[string][]byte, client *grafana.C
 	}
 }
 
+// DeleteDashboards takes a slice of files' names and a map mapping a file's name
+// to its content, and iterates over the first slice. For each file name, extract
+// a dashboard's slug from the content, in the map, that matches the name, and
+// will use it to send a deletion request to the Grafana API.
+// Logs any errors encountered during an iteration, but doesn't return until all
+// deletion requests have been performed.
 func DeleteDashboards(filenames []string, contents map[string][]byte, client *grafana.Client) {
 	for _, filename := range filenames {
 		// Retrieve dashboard slug because we need it in the deletion request.
